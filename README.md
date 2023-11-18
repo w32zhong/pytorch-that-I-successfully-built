@@ -1,3 +1,4 @@
+## Install
 ```sh
 $ git submodule sync
 $ git submodule update --init --recursive
@@ -80,4 +81,11 @@ Author: w32zhong <clock126@126.com>
 Date:   Wed Nov 15 22:02:24 2023 -0500
 
     update README
+```
+
+## Quick Start
+```sh
+$ python hello-world.py
+tensor([0.8506], grad_fn=<SigmoidBackward0>)
+tensor(0.0223, grad_fn=<MseLossBackward0>)
 ```
