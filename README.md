@@ -83,6 +83,8 @@ Date:   Wed Nov 15 22:02:24 2023 -0500
     update README
 ```
 
+And after building, there will be `*.so` files under `torch/lib/`.
+
 ## Quick Start
 ```sh
 $ python hello-world.py
