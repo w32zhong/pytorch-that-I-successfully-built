@@ -21,9 +21,15 @@ class Net(nn.Module):
 
 
 net = Net()
+net = net.to('cuda:0')
+
 input_data = torch.tensor([0.8])
-output = net(input_data)
+input_data = input_data.to('cuda:0')
+
 target = torch.tensor([1.])
+target = target.to('cuda:0')
+
+output = net(input_data)
 criterion = nn.MSELoss()
 loss = criterion(output, target)
 net.zero_grad()
