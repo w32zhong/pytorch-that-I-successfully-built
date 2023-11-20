@@ -97,6 +97,12 @@ you can see all build commands.
 
 See [build-stage1.log](./build-stage1.log) and [build-stage2.log](./build-stage2.log) for my build logs.
 
+You can also extract the building structure:
+```sh
+python extract_build_structure.py | tee build-struct.log
+```
+the output is saved in [build-struct.log](./build-struct.log).
+
 ## Redo Python package building
 To redo the whole process of Python package building (without compiling dependencies like Caffe2 etc.):
 ```sh
