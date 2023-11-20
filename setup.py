@@ -518,6 +518,10 @@ def check_pydep(importname, module):
 
 
 class build_ext(setuptools.command.build_ext.build_ext):
+    def copy_file(self, src, dst, level=0):
+        print('C@PY', src, '-->', dst)
+        super().copy_file(src, dst)
+
     # Copy libiomp5.dylib inside the wheel package on OS X
     def _embed_libiomp(self):
         lib_dir = os.path.join(self.build_lib, "torch", "lib")
@@ -705,7 +709,6 @@ class build_ext(setuptools.command.build_ext.build_ext):
                 del self.extensions[i]
             else:
                 dst = os.path.join(os.path.realpath(self.build_lib), filename)
-                report(f"Copying {ext.name} from {src} to {dst}")
                 dst_dir = os.path.dirname(dst)
                 if not os.path.exists(dst_dir):
                     os.makedirs(dst_dir)
@@ -722,7 +725,6 @@ class build_ext(setuptools.command.build_ext.build_ext):
             src = os.path.join(os.path.dirname(filename), "functorch" + fileext)
             dst = os.path.join(os.path.realpath(self.build_lib), filename)
             if os.path.exists(src):
-                report(f"Copying {ext.name} from {src} to {dst}")
                 dst_dir = os.path.dirname(dst)
                 if not os.path.exists(dst_dir):
                     os.makedirs(dst_dir)
