@@ -95,7 +95,7 @@ $ python setup.py develop
 copying functorch/functorch.so -> build/lib.linux-x86_64-cpython-39/functorch/_C.cpython-39-x86_64-linux-gnu.so
 building 'torch._C' extension
 gcc -c torch/csrc/stub.c -o build/temp.linux-x86_64-cpython-39/torch/csrc/stub.o
-gcc build/temp.linux-x86_64-cpython-39/torch/csrc/stub.o -o build/lib.linux-x86_64-cpython-39/torch/_C.cpython-39-x86_64-linux-gnu.so
+gcc build/temp.linux-x86_64-cpython-39/torch/csrc/stub.o -L torch/lib -ltorch_python.so -o build/lib.linux-x86_64-cpython-39/torch/_C.cpython-39-x86_64-linux-gnu.so
 copying build/lib.linux-x86_64-cpython-39/torch/_C.cpython-39-x86_64-linux-gnu.so -> torch
 copying build/lib.linux-x86_64-cpython-39/functorch/_C.cpython-39-x86_64-linux-gnu.so -> functorch
 ...
