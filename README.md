@@ -1,4 +1,4 @@
-## Install
+## Build
 ```sh
 $ git submodule sync
 $ git submodule update --init --recursive
@@ -79,12 +79,20 @@ Date:   Wed Nov 15 22:02:24 2023 -0500
     update README
 ```
 
-## Quick Start
+## Quick start
 ```sh
 $ python hello-world.py
 tensor([0.8506], grad_fn=<SigmoidBackward0>)
 tensor(0.0223, grad_fn=<MseLossBackward0>)
 ```
+
+## Verbose build
+By directly invoke cmake with `--verbose` option:
+```sh
+cd build
+cmake --build . --target install --config Release --verbose | tee build.log
+```
+you can see all build commands.
 
 ## Redo Python package building
 To redo the whole process of Python package building (without compiling dependencies like Caffe2 etc.):
