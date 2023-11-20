@@ -92,7 +92,11 @@ class CMake:
         "Executes cmake with arguments and an environment."
 
         command = [self._cmake_command] + args
-        print(" ".join(command))
+        from pprint import pprint
+        pprint(env)
+        print('CMD:', " ".join(command))
+        print('CWD:', self.build_dir)
+        input('Enter to continue...')
         try:
             check_call(command, cwd=self.build_dir, env=env)
         except (CalledProcessError, KeyboardInterrupt) as e:
