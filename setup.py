@@ -644,6 +644,11 @@ class build_ext(setuptools.command.build_ext.build_ext):
             os.environ["CC"] = str(os.environ["CC"])
 
         # It's an old-style class in Python 2.7...
+
+        # Generate:
+        # build/lib.linux-x86_64-cpython-39/
+        #   torch/_C.cpython-39-x86_64-linux-gnu.so
+        #   functorch/_C.cpython-39-x86_64-linux-gnu.so
         setuptools.command.build_ext.build_ext.run(self)
 
         if IS_DARWIN and package_type != "conda":
