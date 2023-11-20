@@ -90,9 +90,12 @@ tensor(0.0223, grad_fn=<MseLossBackward0>)
 By directly invoke cmake with `--verbose` option:
 ```sh
 cd build
+cmake --trace . | tee trace.log
 cmake --build . --target install --config Release --verbose | tee build.log
 ```
 you can see all build commands.
+
+See [build-stage1.log](./build-stage1.log) and [build-stage2.log](./build-stage2.log) for my build logs.
 
 ## Redo Python package building
 To redo the whole process of Python package building (without compiling dependencies like Caffe2 etc.):
