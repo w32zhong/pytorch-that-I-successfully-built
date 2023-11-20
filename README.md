@@ -85,3 +85,23 @@ $ python hello-world.py
 tensor([0.8506], grad_fn=<SigmoidBackward0>)
 tensor(0.0223, grad_fn=<MseLossBackward0>)
 ```
+
+## Redo Python package building
+To redo the whole process of Python package building (without compiling dependencies like Caffe2 etc.):
+```sh
+$ find . -name '_C.*.so' | xargs rm -f
+$ python setup.py develop
+...
+copying functorch/functorch.so -> build/lib.linux-x86_64-cpython-39/functorch/_C.cpython-39-x86_64-linux-gnu.so
+building 'torch._C' extension
+gcc -c torch/csrc/stub.c -o build/temp.linux-x86_64-cpython-39/torch/csrc/stub.o
+gcc build/temp.linux-x86_64-cpython-39/torch/csrc/stub.o -o build/lib.linux-x86_64-cpython-39/torch/_C.cpython-39-x86_64-linux-gnu.so
+copying build/lib.linux-x86_64-cpython-39/torch/_C.cpython-39-x86_64-linux-gnu.so -> torch
+copying build/lib.linux-x86_64-cpython-39/functorch/_C.cpython-39-x86_64-linux-gnu.so -> functorch
+...
+$ find . -name '_C.*.so'
+./build/lib.linux-x86_64-cpython-39/functorch/_C.cpython-39-x86_64-linux-gnu.so 
+./build/lib.linux-x86_64-cpython-39/torch/_C.cpython-39-x86_64-linux-gnu.so
+./torch/_C.cpython-39-x86_64-linux-gnu.so
+./functorch/_C.cpython-39-x86_64-linux-gnu.so
+```
