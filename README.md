@@ -82,6 +82,9 @@ Date:   Wed Nov 15 22:02:24 2023 -0500
     update README
 ```
 
+Good to know: the setup.py will generate Ninja build files as long as the command is installed
+(see [this](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/fec8db5927af25b99da9ddc6a2343f0893ef7bcb/tools/setup_helpers/cmake.py#L31)).
+
 ## Quick test
 ```sh
 $ python hello-world.py
