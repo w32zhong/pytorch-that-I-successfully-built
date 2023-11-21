@@ -152,6 +152,7 @@ After setup, one can use the following command to trace the cmake execution.
 cd build
 cmake .. --trace-expand &> trace.log
 ```
+Here are some of the important cmake files:
 * [/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/CMakeLists.txt)
   * `add_subdirectory(caffe2)`
   * `include(cmake/public/utils.cmake)`
@@ -165,8 +166,8 @@ cmake .. --trace-expand &> trace.log
   * `target_link_libraries(torch PUBLIC torch_cuda_library)`
   * `caffe2_interface_library(torch torch_library)`
 
-By utilizing ninja, we can browse dependency clearly on browser:
+By utilizing ninja, we can browse dependency clearly on browser. For build target torch_python:
 ```sh
-# for target torch_python:
-ninja -t browse torch_python
+# assume we are still in ./build here.
+ninja -t browse -p 8080 torch_python
 ```
