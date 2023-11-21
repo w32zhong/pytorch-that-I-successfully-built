@@ -155,3 +155,4 @@ The `initModule` actually is defined in `torch/csrc/Module.cpp`.
 * [caffe2/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/caffe2/CMakeLists.txt)
   * `add_library(torch ${DUMMY_EMPTY_FILE})`
   * `target_link_libraries(torch PUBLIC torch_cuda_library)`
+  * `caffe2_interface_library(torch torch_library)`
