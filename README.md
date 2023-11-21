@@ -147,5 +147,11 @@ $ nm -D --defined-only build/lib/libtorch_python.so | grep initModule
 The `initModule` actually is defined in `torch/csrc/Module.cpp`.
 
 ## Build internal
-* `add_subdirectory(caffe2)` in [/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/CMakeLists.txt#L1068-L1069)
-* `add_library(torch ${DUMMY_EMPTY_FILE})`, `target_link_libraries(torch PUBLIC torch_cuda_library)`, etc. in [caffe2/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/caffe2/CMakeLists.txt).
+* [/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/CMakeLists.txt)
+  * `add_subdirectory(caffe2)`
+  * `include(cmake/public/utils.cmake)`
+* [cmake/public/utils.cmake](https://github.com/pytorch/pytorch/blob/c47d2b80355db2120a591f21df494bdacff5ef30/cmake/public/utils.cmake#L221)
+  * `macro(caffe2_interface_library SRC DST)`
+* [caffe2/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/caffe2/CMakeLists.txt)
+  * `add_library(torch ${DUMMY_EMPTY_FILE})`
+  * `target_link_libraries(torch PUBLIC torch_cuda_library)`
