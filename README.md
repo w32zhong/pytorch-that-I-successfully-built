@@ -164,3 +164,9 @@ cmake .. --trace-expand &> trace.log
   * `add_library(torch ${DUMMY_EMPTY_FILE})`
   * `target_link_libraries(torch PUBLIC torch_cuda_library)`
   * `caffe2_interface_library(torch torch_library)`
+
+By utilizing ninja, we can browse dependency clearly on browser:
+```sh
+# for target torch_python:
+ninja -t browse torch_python
+```
