@@ -1,0 +1,40 @@
+digraph R {
+    rankdir="LR"
+    node [fontsize=32 shape=rect]
+
+    libc10[label="lib/libc10.so"]
+    c10[label="c10/*"]
+    c10_cuda[label="c10/cuda/*"]
+    caffe2_libshm_core[label="caffe2/torch/lib/libshm/core.cpp.o"]
+    libmkl_gnu_thread[label="anaconda3/envs/pytorch-study/lib/libmkl_gnu_thread.so"]
+    libcudart[label="/opt/cuda/lib/libcudart.so"]
+    libnvToolsExt[label="/opt/cuda/lib/libnvToolsExt.so"]
+    libmkl_core[label="anaconda3/envs/pytorch-study/lib/libmkl_core.so"]
+    libmkl_intel_lp64[label="anaconda3/envs/pytorch-study/lib/libmkl_intel_lp64.so"]
+    libtorch_global_deps[label="lib/libtorch_global_deps.so"]
+    libtorch_python[label="lib/libtorch_python.so"]
+    libshm[label="lib/libshm.so"]
+    libtorch[label="lib/libtorch.so"]
+    caffe2_torch[label="caffe2/torch/*"]
+    caffe2__empty[label="caffe2/__/empty.cpp.o"]
+    libc10_cuda[label="lib/libc10_cuda.so"]
+
+    libcudart -> libc10_cuda
+    libcudart -> libtorch_global_deps
+    libnvToolsExt -> libtorch_global_deps
+    libmkl_gnu_thread -> libtorch_global_deps
+    libmkl_core -> libtorch_global_deps
+    libmkl_intel_lp64 -> libtorch_global_deps
+    libshm -> libtorch_python
+    caffe2_torch -> libtorch_python
+    libtorch -> libtorch_python
+    libc10_cuda -> libtorch
+    libc10 -> libtorch
+    caffe2__empty -> libtorch
+    libc10_cuda -> libshm
+    libc10 -> libshm
+    caffe2_libshm_core -> libshm
+    libtorch_global_deps -> libshm
+    c10 -> libc10
+    c10_cuda -> libc10_cuda
+}
