@@ -1,3 +1,6 @@
+## Module dependencies
+![](./dep.png)
+
 ## Build
 ```sh
 $ git submodule sync
