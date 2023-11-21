@@ -1344,6 +1344,7 @@ class WeakTensorRef {
 extern "C" C10_EXPORT PyObject* initModule();
 // separate decl and defn for msvc error C2491
 PyObject* initModule() {
+std::cout << "This is the entrance!\n";
   HANDLE_TH_ERRORS
 
   c10::initLogging();
