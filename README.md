@@ -147,6 +147,11 @@ $ nm -D --defined-only build/lib/libtorch_python.so | grep initModule
 The `initModule` actually is defined in `torch/csrc/Module.cpp`.
 
 ## Build internal
+After setup, one can use the following command to trace the cmake execution.
+```sh
+cd build
+cmake .. --trace-expand &> trace.log
+```
 * [/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/CMakeLists.txt)
   * `add_subdirectory(caffe2)`
   * `include(cmake/public/utils.cmake)`
