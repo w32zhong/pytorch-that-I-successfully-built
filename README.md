@@ -155,6 +155,7 @@ cmake .. --trace-expand &> trace.log
 * [/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/CMakeLists.txt)
   * `add_subdirectory(caffe2)`
   * `include(cmake/public/utils.cmake)`
+  * `include(cmake/Dependencies.cmake)`
 * [cmake/public/utils.cmake](https://github.com/pytorch/pytorch/blob/c47d2b80355db2120a591f21df494bdacff5ef30/cmake/public/utils.cmake#L221)
   * `macro(caffe2_interface_library SRC DST)`
 * [cmake/Codegen.cmake](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/bc54c0ee378ab481040778d6e11d48afbe714c4b/cmake/Codegen.cmake#L352)
