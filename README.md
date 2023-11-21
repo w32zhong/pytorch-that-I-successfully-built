@@ -126,3 +126,17 @@ $ find . -name '_C.*.so'
 ./torch/_C.cpython-39-x86_64-linux-gnu.so
 ./functorch/_C.cpython-39-x86_64-linux-gnu.so
 ```
+
+Now we know `_C.cpython-39-x86_64-linux-gnu.so` is just a stub.o (which calls `initModule`) plus `libtorch_python.so`.
+We can verify `libtorch_python.so` has defined the `initModule`:
+```sh
+$ nm -D --defined-only build/lib/libtorch_python.so | grep initModule
+000000000073cdc0 T _Z20THPEngine_initModuleP7_object
+0000000000741040 T _Z22THPFunction_initModuleP7_object
+000000000076d720 T _Z22THPVariable_initModuleP7_object
+0000000000b6bf70 T _ZN5torch3cpu10initModuleEP7_object
+0000000000b8a0d0 T _ZN5torch4cuda10initModuleEP7_object
+00000000006afa80 T initModule
+```
+
+The `initModule` actually is defined in `torch/csrc/Module.cpp`.
