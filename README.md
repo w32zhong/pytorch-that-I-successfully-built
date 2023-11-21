@@ -82,7 +82,7 @@ Date:   Wed Nov 15 22:02:24 2023 -0500
     update README
 ```
 
-## Quick start
+## Quick test
 ```sh
 $ python hello-world.py
 tensor([0.8506], grad_fn=<SigmoidBackward0>)
@@ -105,6 +105,7 @@ You can also extract the building structure:
 python extract_build_structure.py | tee build-struct.log
 ```
 the output is saved in [build-struct.log](./build-struct.log).
+The output can be used to draw a module dependency graph as shown at the top.
 
 ## Redo Python package building
 To redo the whole process of Python package building (without compiling dependencies like Caffe2 etc.):
