@@ -155,6 +155,33 @@ $ nm -D --defined-only build/lib/libtorch_python.so | grep initModule
 
 The `initModule` actually is defined in `torch/csrc/Module.cpp`.
 
+## Debug and trace code
+To know which function is defined at which source code file, we need to build [with debug information](https://github.com/pytorch/pytorch/blob/main/CONTRIBUTING.md#tips-and-debugging):
+```
+CUDA_DEVICE_DEBUG=1 DEBUG=1 REL_WITH_DEB_INFO=1 USE_DISTRIBUTED=0 USE_MKLDNN=0 BUILD_CAFFE2=0 BUILD_TEST=0 USE_NNPACK=0 USE_XNNPACK=0 USE_QNNPACK=0 USE_FLASH_ATTENTION=0 USE_MEM_EFF_ATTENTION=0 python setup.py develop --verbose
+```
+and now you can see debug sections in ELF and see symbol table with source paths:
+```
+$ readelf -S build/lib/libtorch_python.so | grep debug
+  [28] .debug_aranges    PROGBITS         0000000000000000  01a6a2f0
+  [29] .debug_info       PROGBITS         0000000000000000  021ca0b0
+  [30] .debug_abbrev     PROGBITS         0000000000000000  0ccf5dad
+  [31] .debug_line       PROGBITS         0000000000000000  0ce883d4
+  [32] .debug_str        PROGBITS         0000000000000000  0e3c1686
+  [33] .debug_line_str   PROGBITS         0000000000000000  111d5e0d
+  [34] .debug_loclists   PROGBITS         0000000000000000  111e6c43
+  [35] .debug_rnglists   PROGBITS         0000000000000000  111f549c
+
+$ nm -C -D -l -g build/lib/libtorch_python.so | grep "initModule"                                                                                                       
+00000000008f5e83 T THPEngine_initModule(_object*)       /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/autograd/python_engine.cpp:475
+000000000090655a T THPFunction_initModule(_object*)     /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/autograd/python_function.cpp:1600
+0000000000943204 T THPVariable_initModule(_object*)     /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/autograd/python_variable.cpp:2197
+00000000010d25b8 T torch::cpu::initModule(_object*)     /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/cpu/Module.cpp:8
+00000000010f50f1 T torch::cuda::initModule(_object*)    /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/cuda/Module.cpp:1533
+00000000007b21c7 T initModule   /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/Module.cpp:1346
+```
+but since now t
+
 ## Build internal
 After setup, one can use the following command to trace the cmake execution.
 ```sh
