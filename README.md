@@ -176,6 +176,12 @@ Here are some of the important cmake files:
   * `caffe2_interface_library(torch torch_library)`
   * `add_subdirectory(../torch torch)`
 * [torch/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/torch/CMakeLists.txt)
+  * `add_dependencies(torch_python gen_torch_version)` means libtorch_python.so depends on gen_torch_version.
+
+We can double check under the cmake debug flag:
+```sh
+cmake -DPRINT_CMAKE_DEBUG_INFO=1 ..
+```
 
 By utilizing ninja, we can browse dependency clearly on browser. For build target torch_python:
 ```sh
