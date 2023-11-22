@@ -86,6 +86,15 @@ Good to know: the setup.py will generate Ninja build files as long as the comman
 (see [this](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/fec8db5927af25b99da9ddc6a2343f0893ef7bcb/tools/setup_helpers/cmake.py#L31)).
 
 ## Quick test
+For cmake:
+```sh
+cd hello-world
+mkdir -p build
+cd build && cmake -G Ninja ..
+cmake --build .  --target all # or ninja all
+```
+
+For pytorch:
 ```sh
 $ python hello-world.py
 tensor([0.8506], grad_fn=<SigmoidBackward0>)
