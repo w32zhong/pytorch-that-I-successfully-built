@@ -176,7 +176,11 @@ Here are some of the important cmake files:
   * `caffe2_interface_library(torch torch_library)`
   * `add_subdirectory(../torch torch)`
 * [torch/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/torch/CMakeLists.txt)
-  * `add_dependencies(torch_python gen_torch_version)` means `libtorch_python.so` depends on `gen_torch_version`.
+  * `add_dependencies(torch_python gen_torch_version)`, meaning that `libtorch_python.so` depends on `gen_torch_version`.
+  * `add_library(torch_python SHARED ${TORCH_PYTHON_SRCS})`, similarly, `libtorch_python.so` depends on `${TORCH_PYTHON_SRCS}` which can be expanded by a simple Python line (see below).
+  * `add_dependencies(torch_python torch_python_stubs)`
+  * `add_dependencies(torch_python generate-torch-sources)`
+  * `target_link_libraries(torch_python PRIVATE torch_library ${TORCH_PYTHON_LINK_LIBRARIES})` where `${TORCH_PYTHON_LINK_LIBRARIES}` depends on `ATEN_CPU_FILES_GEN_LIB`
 
 For lines like `append_filelist("libtorch_python_core_sources" TORCH_PYTHON_SRCS)`, we can repreduce the variable being set here, i.e., `TORCH_PYTHON_SRCS`:
 ```sh
