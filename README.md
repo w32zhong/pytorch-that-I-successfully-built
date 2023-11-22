@@ -166,12 +166,14 @@ Here are some of the important cmake files:
   * `add_subdirectory(caffe2)`
   * `include(cmake/public/utils.cmake)`
   * `include(cmake/Dependencies.cmake)`
+  * `include_directories(BEFORE ${PROJECT_SOURCE_DIR}/aten/src/)`
 * [cmake/public/utils.cmake](https://github.com/pytorch/pytorch/blob/c47d2b80355db2120a591f21df494bdacff5ef30/cmake/public/utils.cmake#L221)
   * `macro(caffe2_interface_library SRC DST)` (think it as `add_dependencies(${DST} ${SRC})`)
 * [cmake/Codegen.cmake](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/bc54c0ee378ab481040778d6e11d48afbe714c4b/cmake/Codegen.cmake#L352)
   * `function(append_filelist name outputvar)` that reads source files from [build_variables.bzl](./build_variables.bzl)
 * [caffe2/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/caffe2/CMakeLists.txt)
   * `add_library(torch ${DUMMY_EMPTY_FILE})`
+  * `add_subdirectory(../aten aten)`
   * `target_link_libraries(torch PUBLIC torch_cuda_library)`: this is the place most of dependencies (expanded from `torch_cuda_library`) are attached to `libtorch.so`
   * `caffe2_interface_library(torch_cuda torch_cuda_library)`: `torch_cuda_library` => `torch_cuda`
   * `add_subdirectory(../torch torch)`
