@@ -175,6 +175,7 @@ Here are some of the important cmake files:
   * `target_link_libraries(torch PUBLIC torch_cuda_library)`
   * `caffe2_interface_library(torch torch_library)`
   * `add_subdirectory(../torch torch)`
+  * `add_library(torch_cuda ${Caffe2_GPU_SRCS} ${Caffe2_GPU_CU_SRCS})`
 * [torch/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/torch/CMakeLists.txt)
   * `add_dependencies(torch_python gen_torch_version)`, meaning that `libtorch_python.so` depends on `gen_torch_version`.
   * `add_library(torch_python SHARED ${TORCH_PYTHON_SRCS})`, similarly, `libtorch_python.so` depends on `${TORCH_PYTHON_SRCS}` which can be expanded by a simple Python line (see below).
