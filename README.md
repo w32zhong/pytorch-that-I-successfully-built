@@ -172,10 +172,12 @@ Here are some of the important cmake files:
   * `function(append_filelist name outputvar)` that reads source files from [build_variables.bzl](./build_variables.bzl)
 * [caffe2/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/caffe2/CMakeLists.txt)
   * `add_library(torch ${DUMMY_EMPTY_FILE})`
-  * `target_link_libraries(torch PUBLIC torch_cuda_library)`
-  * `caffe2_interface_library(torch torch_library)`
+  * `target_link_libraries(torch PUBLIC torch_cuda_library)`: this is the place most of dependencies (expanded from `torch_cuda_library`) are attached to `libtorch.so`
+  * `caffe2_interface_library(torch_cuda torch_cuda_library)`: `torch_cuda_library` => `torch_cuda`
   * `add_subdirectory(../torch torch)`
-  * `add_library(torch_cuda ${Caffe2_GPU_SRCS} ${Caffe2_GPU_CU_SRCS})`
+  * `add_library(torch_cuda ${Caffe2_GPU_SRCS} ${Caffe2_GPU_CU_SRCS})`: `torch_cuda` => a lot of source files.
+  * `list(APPEND Caffe2_GPU_SRCS ${ATen_CUDA_CPP_SRCS})` and `list(APPEND Caffe2_GPU_CU_SRCS ${ATen_CUDA_CU_SRCS})`
+  * 
 * [torch/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/torch/CMakeLists.txt)
   * `add_dependencies(torch_python gen_torch_version)`, meaning that `libtorch_python.so` depends on `gen_torch_version`.
   * `add_library(torch_python SHARED ${TORCH_PYTHON_SRCS})`, similarly, `libtorch_python.so` depends on `${TORCH_PYTHON_SRCS}` which can be expanded by a simple Python line (see below).
