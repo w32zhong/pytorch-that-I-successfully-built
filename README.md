@@ -178,6 +178,17 @@ Here are some of the important cmake files:
 * [torch/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/torch/CMakeLists.txt)
   * `add_dependencies(torch_python gen_torch_version)` means libtorch_python.so depends on gen_torch_version.
 
+For lines like `append_filelist("libtorch_python_core_sources" TORCH_PYTHON_SRCS)`, we can repreduce the variable being set here, i.e., TORCH_PYTHON_SRCS:
+```sh
+$ python
+Python 3.8.16 (default, Mar  2 2023, 03:21:46) 
+[GCC 11.2.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> exec(open('build_variables.bzl').read())
+>>> libtorch_python_core_sources[:50]
+['torch/csrc/DataLoader.cpp', 'torch/csrc/Device.cpp', 'torch/csrc/Dtype.cpp', 'torch/csrc/DynamicTypes.cpp', 'torch/csrc/Exceptions.cpp', 'torch/csrc/Generator.cpp', 'torch/csrc/Layout.cpp', 'torch/csrc/MemoryFormat.cpp', 'torch/csrc/QScheme.cpp', 'torch/csrc/Module.cpp', 'torch/csrc/PyInterpreter.cpp', 'torch/csrc/python_dimname.cpp', 'torch/csrc/Size.cpp', 'torch/csrc/Storage.cpp', 'torch/csrc/StorageMethods.cpp', 'torch/csrc/StorageSharing.cpp', 'torch/csrc/Stream.cpp', 'torch/csrc/TypeInfo.cpp', 'torch/csrc/api/src/python/init.cpp', 'torch/csrc/autograd/functions/init.cpp', 'torch/csrc/autograd/init.cpp', 'torch/csrc/autograd/profiler_python.cpp', 'torch/csrc/autograd/python_anomaly_mode.cpp', 'torch/csrc/autograd/python_saved_variable_hooks.cpp', 'torch/csrc/autograd/python_cpp_function.cpp', 'torch/csrc/autograd/python_engine.cpp', 'torch/csrc/autograd/python_function.cpp', 'torch/csrc/autograd/python_hook.cpp', 'torch/csrc/autograd/python_legacy_variable.cpp', 'torch/csrc/autograd/python_nested_functions_manual.cpp', 'torch/csrc/autograd/python_torch_functions_manual.cpp', 'torch/csrc/autograd/python_variable.cpp', 'torch/csrc/autograd/python_variable_indexing.cpp', 'torch/csrc/dynamo/python_compiled_autograd.cpp', 'torch/csrc/dynamo/cpp_shim.cpp', 'torch/csrc/dynamo/cpython_defs.c', 'torch/csrc/dynamo/eval_frame.c', 'torch/csrc/dynamo/guards.cpp', 'torch/csrc/dynamo/init.cpp', 'torch/csrc/functorch/init.cpp', 'torch/csrc/mps/Module.cpp', 'torch/csrc/jit/backends/backend_init.cpp', 'torch/csrc/jit/python/init.cpp', 'torch/csrc/jit/passes/onnx.cpp', 'torch/csrc/jit/passes/onnx/cast_all_constant_to_floating.cpp', 'torch/csrc/jit/passes/onnx/deduplicate_initializers.cpp', 'torch/csrc/jit/passes/onnx/eval_peephole.cpp', 'torch/csrc/jit/passes/onnx/constant_fold.cpp', 'torch/csrc/jit/passes/onnx/constant_map.cpp', 'torch/csrc/jit/passes/onnx/eliminate_unused_items.cpp']
+```
+
 We can double check under the cmake debug flag:
 ```sh
 cmake -DPRINT_CMAKE_DEBUG_INFO=1 ..
