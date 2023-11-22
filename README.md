@@ -167,7 +167,7 @@ Here are some of the important cmake files:
   * `include(cmake/public/utils.cmake)`
   * `include(cmake/Dependencies.cmake)`
 * [cmake/public/utils.cmake](https://github.com/pytorch/pytorch/blob/c47d2b80355db2120a591f21df494bdacff5ef30/cmake/public/utils.cmake#L221)
-  * `macro(caffe2_interface_library SRC DST)`
+  * `macro(caffe2_interface_library SRC DST)` (think it as `add_dependencies(${DST} ${SRC})`)
 * [cmake/Codegen.cmake](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/bc54c0ee378ab481040778d6e11d48afbe714c4b/cmake/Codegen.cmake#L352)
   * `function(append_filelist name outputvar)` that reads source files from [build_variables.bzl](./build_variables.bzl)
 * [caffe2/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/caffe2/CMakeLists.txt)
