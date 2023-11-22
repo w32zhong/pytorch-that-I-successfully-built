@@ -180,7 +180,30 @@ $ nm -C -D -l -g build/lib/libtorch_python.so | grep "initModule"
 00000000010f50f1 T torch::cuda::initModule(_object*)    /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/cuda/Module.cpp:1533
 00000000007b21c7 T initModule   /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/Module.cpp:1346
 ```
-but since now t
+
+And to breakpoint at a C level function in gdb:
+```sh
+$ gdb python
+GNU gdb (GDB) 13.1
+Copyright (C) 2023 Free Software Foundation, Inc.
+...
+(gdb) b initModule
+Function "initModule" not defined.
+Make breakpoint pending on future shared library load? (y or [n]) y
+Breakpoint 1 (initModule) pending.
+(gdb) run
+Starting program: /home/tk/anaconda3/envs/pytorch-study/bin/python
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.archlinux.org>
+Enable debuginfod for this session? (y or [n]) y
+Python 3.9.18 (main, Sep 11 2023, 13:41:44)
+[GCC 11.2.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import torch
+Breakpoint 1.1, initModule ()
+    at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/Module.cpp:1346
+1346    PyObject* initModule() {
+```
 
 ## Build internal
 After setup, one can use the following command to trace the cmake execution.
