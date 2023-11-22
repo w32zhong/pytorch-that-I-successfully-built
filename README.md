@@ -162,7 +162,7 @@ cd build
 cmake .. --trace-expand &> trace.log
 ```
 Here are some of the important cmake files:
-* [/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/CMakeLists.txt)
+* [CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/CMakeLists.txt)
   * `add_subdirectory(caffe2)`
   * `include(cmake/public/utils.cmake)`
   * `include(cmake/Dependencies.cmake)`
@@ -181,6 +181,8 @@ Here are some of the important cmake files:
   * `list(APPEND Caffe2_GPU_SRCS ${ATen_CUDA_CPP_SRCS})` and `list(APPEND Caffe2_GPU_CU_SRCS ${ATen_CUDA_CU_SRCS})`
 * [aten/CMakeLists.txt](https://github.com/pytorch/pytorch/blob/e7326ec295559c16795088e79a5631e784bb4d61/aten/CMakeLists.txt)
   * `set(ATen_CUDA_CPP_SRCS ${ATen_CUDA_CPP_SRCS} PARENT_SCOPE)`
+* [aten/src/ATen/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/1b34089a4c42f546f6331d30ffad20aa9549a7e7/aten/src/ATen/CMakeLists.txt)
+  * `list(APPEND ATen_CUDA_CPP_SRCS ${cuda_cpp} ${native_cuda_cpp} ...)` 
 * [torch/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/torch/CMakeLists.txt)
   * `add_dependencies(torch_python gen_torch_version)`, meaning that `libtorch_python.so` depends on `gen_torch_version`.
   * `add_library(torch_python SHARED ${TORCH_PYTHON_SRCS})`, similarly, `libtorch_python.so` depends on `${TORCH_PYTHON_SRCS}` which can be expanded by a simple Python line (see below).
