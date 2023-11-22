@@ -174,6 +174,8 @@ Here are some of the important cmake files:
   * `add_library(torch ${DUMMY_EMPTY_FILE})`
   * `target_link_libraries(torch PUBLIC torch_cuda_library)`
   * `caffe2_interface_library(torch torch_library)`
+  * `add_subdirectory(../torch torch)`
+* [torch/CMakeLists.txt](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/70c404d0a090463e3fac01346dacef18550c40e1/torch/CMakeLists.txt)
 
 By utilizing ninja, we can browse dependency clearly on browser. For build target torch_python:
 ```sh
