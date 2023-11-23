@@ -1344,7 +1344,7 @@ class WeakTensorRef {
 extern "C" C10_EXPORT PyObject* initModule();
 // separate decl and defn for msvc error C2491
 PyObject* initModule() {
-std::cout << "This is the entrance!\n";
+std::cout << "torch initModule BEGIN\n";
   HANDLE_TH_ERRORS
 
   c10::initLogging();
@@ -1379,7 +1379,8 @@ std::cout << "This is the entrance!\n";
 #endif
 
   static struct PyModuleDef torchmodule = {
-      PyModuleDef_HEAD_INIT, "torch._C", nullptr, -1, methods.data()};
+      PyModuleDef_HEAD_INIT, "torch._C", nullptr, -1, methods.data()
+  };
   module = PyModule_Create(&torchmodule);
   ASSERT_TRUE(module);
   ASSERT_TRUE(THPGenerator_init(module));
@@ -1850,6 +1851,7 @@ Call this whenever a new thread is created in order to propagate values from
   torch::set_disabled_torch_dispatch_impl(
       PyObject_GetAttrString(module, "_disabled_torch_dispatch_impl"));
   ASSERT_TRUE(torch::disabled_torch_dispatch_impl() != nullptr);
+std::cout << "torch initModule END\n";
   return module;
   END_HANDLE_TH_ERRORS
 }

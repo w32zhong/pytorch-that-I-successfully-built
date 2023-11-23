@@ -247,6 +247,8 @@ static PyObject* THPVariable_tensor(
     PyObject* args,
     PyObject* kwargs) {
   HANDLE_TH_ERRORS
+std::cout << "torch.tensor() called!\n";
+
   static PythonArgParser parser({
       "tensor(PyObject* data, *, ScalarType dtype=None, Device? device=None, bool pin_memory=False, bool requires_grad=False, DimnameList? names=None)",
   });
