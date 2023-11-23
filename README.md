@@ -85,6 +85,15 @@ Date:   Wed Nov 15 22:02:24 2023 -0500
 Good to know: the setup.py will generate Ninja build files as long as the ninja command is installed
 (see [this](https://github.com/w32zhong/pytorch-that-I-successfully-built/blob/fec8db5927af25b99da9ddc6a2343f0893ef7bcb/tools/setup_helpers/cmake.py#L31)).
 
+## Quick partial rebuild
+At top leve:
+```sh
+cd torch
+ln -sf ../build/lib.linux-x86_64-cpython-39/torch/_C.cpython-39-x86_64-linux-gnu.so .
+cd -
+cmake --build ./build --target install --config Release
+```
+
 ## Quick test
 For cmake:
 ```sh
