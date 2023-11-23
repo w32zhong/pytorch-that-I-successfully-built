@@ -219,6 +219,39 @@ Alternatively, in one command:
 gdb -ex "b initModule" -ex run --args python hello-world.py
 ```
 
+To debug a already running python:
+```sh
+$ python
+Python 3.9.18 (main, Sep 11 2023, 13:41:44) 
+[GCC 11.2.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import os; print(os.getpid())
+2031925
+>>>
+```
+in another terminal:
+```sh
+gdb -p 2031925 python
+...
+(gdb) break THPVariable_tensor
+Function "THPVariable_tensor" not defined.
+Make breakpoint pending on future shared library load? (y or [n]) y
+Breakpoint 1 (THPVariable_tensor) pending.
+(gdb) c
+Continuing.
+```
+then back in the runnig python:
+```sh
+>>> a=torch.tensor([1])
+```
+this will triger gdb to show
+```
+Thread 1 "python" hit Breakpoint 1, torch::autograd::THPVariable_tensor (self=0x0, 
+    args=0x7f279229e6a0, kwargs=0x0)
+    at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/autograd/python_torch_functions_manual.cpp:248
+248         PyObject* kwargs) {
+```
+
 ## Build internal
 After setup, one can use the following command to trace the cmake execution.
 ```sh
