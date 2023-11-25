@@ -161,8 +161,13 @@ $ nm -D --defined-only build/lib/libtorch_python.so | grep initModule
 0000000000b8a0d0 T _ZN5torch4cuda10initModuleEP7_object
 00000000006afa80 T initModule
 ```
+(`initModule` is defined in `torch/csrc/Module.cpp`)
 
-The `initModule` actually is defined in `torch/csrc/Module.cpp`.
+If compiled with debug information, we can easily find out the source file:
+```
+$ nm -C -D -l -g libtorch_cpu.so | grep "at::_ops::empty_memory_format::call"                                                                                           
+00000000020950be T at::_ops::empty_memory_format::call(c10::ArrayRef<c10::SymInt>, c10::optional<c10::ScalarType>, c10::optional<c10::Layout>, c10::optional<c10::Device>, c10::optional<bool>, c10::optional<c10::MemoryFormat>)       /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/Operators_2.cpp:3231
+```
 
 ## Debug and trace code
 To know which function is defined at which source code file, we need to build [with debug information](https://github.com/pytorch/pytorch/blob/main/CONTRIBUTING.md#tips-and-debugging):
