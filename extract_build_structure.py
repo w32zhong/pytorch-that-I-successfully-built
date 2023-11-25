@@ -1,3 +1,5 @@
+import os
+import subprocess
 prefix = '/home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/'
 
 
@@ -63,8 +65,7 @@ def print_simple_lines():
                 print(src + objs_dir + libs, '==>', dst)
 
 
-def expand_headers(src_file='tensor_new.cpp'):
-    import subprocess
+def expand_headers(src_file='tensor_new.cpp', options=['-H', '-c']):
     with open('build-stage1.log') as fh:
         for line in fh:
             line = line.strip()
@@ -75,7 +76,7 @@ def expand_headers(src_file='tensor_new.cpp'):
                 includes = extract_startswith(tokens, '-I')
                 cc = tokens[1]
                 src = src[0]
-                cmd = [cc, '-H', '-c', src] + includes + isystem
+                cmd = [cc] + options + [src] + includes + isystem
                 output = subprocess.check_output(' '.join(cmd), shell=True, stderr=subprocess.STDOUT)
                 return output.decode().strip()
 
@@ -94,10 +95,23 @@ def expand_headers_struct(src_file='tensor_new.cpp', dst_file=None):
         print(path)
 
 
+def gen_source_ctags(src_file='tensor_new.cpp'):
+    output = expand_headers(src_file, options=['-M'])
+    with open('tags.list', 'w') as fh:
+        for line in output.split('\n'):
+            fields = line.split(':')
+            line = fields[-1]
+            line = line.strip('\\')
+            line = line.strip()
+            fh.write(line + '\n')
+    os.system('ctags -L tags.list --c++-kinds=+p --fields=+iaS --extras=+q')
+
+
 if __name__ == '__main__':
     import fire
     fire.Fire({
         'print_simple_lines': print_simple_lines,
         'expand_headers': expand_headers,
-        'expand_headers_struct': expand_headers_struct
+        'expand_headers_struct': expand_headers_struct,
+        'gen_source_ctags': gen_source_ctags,
     })
