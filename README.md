@@ -337,3 +337,48 @@ By utilizing ninja, we can browse dependency clearly on browser. For build targe
 # assume we are still in ./build here.
 ninja -t browse -p 8080 torch_python
 ```
+
+## Source internal
+```c
+# torch/library.h
+#define TORCH_LIBRARY_IMPL(ns, k, m, uid)                                 \
+  static void C10_CONCATENATE(                                            \
+      TORCH_LIBRARY_IMPL_init_##ns##_##k##_, uid)(torch::Library&);       \
+  static const torch::detail::TorchLibraryInit C10_CONCATENATE(           \
+      TORCH_LIBRARY_IMPL_static_init_##ns##_##k##_, uid)(                 \
+      torch::Library::IMPL,                                               \
+      (c10::impl::dispatch_key_allowlist_check(c10::DispatchKey::k)       \
+           ? &C10_CONCATENATE(TORCH_LIBRARY_IMPL_init_##ns##_##k##_, uid) \
+           : [](torch::Library&) -> void {}),                             \
+      #ns,                                                                \
+      c10::make_optional(c10::DispatchKey::k),                            \
+      __FILE__,                                                           \
+      __LINE__);                                                          \
+  void C10_CONCATENATE(                                                   \
+      TORCH_LIBRARY_IMPL_init_##ns##_##k##_, uid)(torch::Library & m)
+
+# aten/src/ATen/ConjugateFallback.cpp
+TORCH_LIBRARY_IMPL(aten, Conjugate, m, 123) {
+  m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
+}
+```
+
+After macro expansion:
+```c
+static void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library&);
+static const torch::detail::TorchLibraryInit
+    TORCH_LIBRARY_IMPL_static_init_aten_Conjugate_123(
+        torch::Library::IMPL,
+        (
+            c10::impl::dispatch_key_allowlist_check(c10::DispatchKey::Conjugate)?
+            &TORCH_LIBRARY_IMPL_init_aten_Conjugate_123 : [](torch::Library&) -> void {}
+        ),
+        "aten",
+        c10::make_optional(c10::DispatchKey::Conjugate),
+        "filename.cpp",
+        1234
+    );
+void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library &m) {
+    m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
+}
+```
