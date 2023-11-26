@@ -414,3 +414,80 @@ void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library &m) {
     m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
 }
 ```
+torch::detail::TorchLibraryInit class:
+```c
+# torch/library.h
+namespace detail {
+class TorchLibraryInit final {
+ private:
+  using InitFn = void(Library&);
+  Library lib_;
+
+ public:
+
+  # the constructor initializes the member `lib_` and call `fn` right away.
+  TorchLibraryInit(
+      Library::Kind kind,
+      InitFn* fn,
+      const char* ns,
+      c10::optional<c10::DispatchKey> k,
+      const char* file,
+      uint32_t line)
+      : lib_(kind, ns, k, file, line) {
+    fn(lib_);
+  }
+};
+} // namespace detail
+
+class TORCH_API Library final {
+ public:
+  enum Kind {
+    DEF,
+    IMPL,
+    FRAGMENT,
+  };
+
+ // ...
+
+ private:
+  Kind kind_;
+  c10::optional<std::string> ns_;
+  c10::optional<c10::DispatchKey> dispatch_key_;
+  const char* file_;
+  uint32_t line_;
+}
+
+// aten/src/ATen/core/library.cpp 
+Library::Library(Kind kind, std::string ns, c10::optional<c10::DispatchKey> k, const char* file, uint32_t line)
+  : kind_(kind)
+  , ns_(ns == "_" ? c10::nullopt : c10::make_optional(std::move(ns)))
+  , dispatch_key_(k.value_or(CatchAll) == CatchAll ? c10::nullopt : k)
+  , file_(file)
+  , line_(line)
+  {
+    switch (kind_) {
+      case DEF:
+        // Only DEFs require library uniqueness; fragments
+        // don't register a library
+        registrars_.emplace_back(
+          c10::Dispatcher::singleton().registerLibrary(
+            *ns_, debugString(file_, line_)
+          )
+        );
+        [[fallthrough]];
+      case FRAGMENT:
+        TORCH_CHECK(
+          ns_.has_value(),
+          toString(kind_), ": cannot define ", toString(kind_), " with the wildcard namespace _ "
+          "(every ", toString(kind_), " defines operators for a distinct namespace!) "
+          "Did you mean to use TORCH_LIBRARY_IMPL instead?  "
+          ERROR_CONTEXT
+        );
+        TORCH_INTERNAL_ASSERT(!dispatch_key_.has_value(), ERROR_CONTEXT);
+        break;
+      case IMPL:
+        // Nothing to do, everything is OK
+        break;
+    }
+  }
+```
