@@ -550,3 +550,62 @@ For `m.impl()`, recall one of its implementation on CPU backend is
 ```c
 m.impl("empty.memory_format", TORCH_FN(wrapper_CPU_memory_format_empty));
 ```
+and `m.impl()` is just a wrapper on `_impl`, and the latter calls `registerKernel(...)`:
+```c
+// torch/library.h
+class TORCH_API Library final {
+  template <typename Name, typename Func>
+  Library& impl(
+      Name name,
+      Func&& raw_f,
+      _RegisterOrVerify rv = _RegisterOrVerify::REGISTER) & {
+    CppFunction f(std::forward<Func>(raw_f));
+    return _impl(name, std::move(f), rv);
+  }
+};
+
+// aten/src/ATen/core/library.cpp
+Library& Library::_impl(const char* name_str, CppFunction&& f, _RegisterOrVerify rv) & {
+  at::OperatorName op_name = _parseNameForLib(name_str);
+  auto dispatch_key = f.dispatch_key_.has_value() ? f.dispatch_key_ : dispatch_key_;
+  switch (rv) {
+    case _RegisterOrVerify::REGISTER:
+      registrars_.emplace_back(
+        c10::Dispatcher::singleton().registerImpl(
+          std::move(op_name),
+          dispatch_key,
+          std::move(f.func_),
+          f.cpp_signature_,
+          std::move(f.schema_),
+          debugString(std::move(f.debug_), file_, line_)
+        )
+      );
+      break;
+  }
+  return *this;
+}
+
+// aten/src/ATen/core/dispatch/Dispatcher.cpp
+RegistrationHandleRAII Dispatcher::registerImpl(
+  OperatorName op_name,
+  c10::optional<DispatchKey> dispatch_key,
+  KernelFunction kernel,
+  c10::optional<impl::CppSignature> cpp_signature,
+  std::unique_ptr<FunctionSchema> inferred_function_schema,
+  std::string debug
+) {
+  auto op = findOrRegisterName_(op_name);
+
+  auto handle = op.operatorDef_->op.registerKernel(
+    *this,
+    dispatch_key,
+    std::move(kernel),
+    std::move(cpp_signature),
+    std::move(inferred_function_schema),
+    std::move(debug)
+  );
+
+  ++op.operatorDef_->def_and_impl_count;
+  // ...
+}
+```
