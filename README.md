@@ -339,6 +339,9 @@ ninja -t browse -p 8080 torch_python
 ```
 
 ## Source internal
+
+### Operator registration
+Taken `tensor.empty()` operator as an example here.
 ```c
 // torch/library.h
 #define TORCH_LIBRARY(ns, m)                                                   \
