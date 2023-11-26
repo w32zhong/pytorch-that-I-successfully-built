@@ -425,7 +425,7 @@ class TorchLibraryInit final {
 
  public:
 
-  # the constructor initializes the member `lib_` and call `fn` right away.
+  // the constructor initializes the member `lib_` and call `fn` right away.
   TorchLibraryInit(
       Library::Kind kind,
       InitFn* fn,
@@ -475,19 +475,12 @@ Library::Library(Kind kind, std::string ns, c10::optional<c10::DispatchKey> k, c
           )
         );
         [[fallthrough]];
-      case FRAGMENT:
-        TORCH_CHECK(
-          ns_.has_value(),
-          toString(kind_), ": cannot define ", toString(kind_), " with the wildcard namespace _ "
-          "(every ", toString(kind_), " defines operators for a distinct namespace!) "
-          "Did you mean to use TORCH_LIBRARY_IMPL instead?  "
-          ERROR_CONTEXT
-        );
-        TORCH_INTERNAL_ASSERT(!dispatch_key_.has_value(), ERROR_CONTEXT);
-        break;
       case IMPL:
         // Nothing to do, everything is OK
         break;
     }
   }
 ```
+Basically, for
+* DEF: register a new `lib_` in Dispatcher::singleton(), and call `TORCH_LIBRARY_init_aten(lib_)`
+* IMPL: only call `TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(lib_)`
