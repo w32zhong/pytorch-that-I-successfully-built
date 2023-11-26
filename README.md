@@ -153,7 +153,7 @@ $ find . -name '_C.*.so'
 Now we know `_C.cpython-39-x86_64-linux-gnu.so` is just a stub.o (which calls `initModule`) plus `libtorch_python.so`.
 We can verify `libtorch_python.so` has defined the `initModule`:
 ```sh
-$ nm -D --defined-only build/lib/libtorch_python.so | grep initModule
+$ nm --defined-only build/lib/libtorch_python.so | grep initModule
 000000000073cdc0 T _Z20THPEngine_initModuleP7_object
 0000000000741040 T _Z22THPFunction_initModuleP7_object
 000000000076d720 T _Z22THPVariable_initModuleP7_object
@@ -165,7 +165,7 @@ $ nm -D --defined-only build/lib/libtorch_python.so | grep initModule
 
 If compiled with debug information, we can easily find out the source file:
 ```
-$ nm -C -D -l -g libtorch_cpu.so | grep "at::_ops::empty_memory_format::call"                                                                                           
+$ nm -Cl --defined-only libtorch_cpu.so | grep "at::_ops::empty_memory_format::call"                                                                                           
 00000000020950be T at::_ops::empty_memory_format::call(c10::ArrayRef<c10::SymInt>, c10::optional<c10::ScalarType>, c10::optional<c10::Layout>, c10::optional<c10::Device>, c10::optional<bool>, c10::optional<c10::MemoryFormat>)       /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/Operators_2.cpp:3231
 ```
 
@@ -236,7 +236,8 @@ Type "help", "copyright", "credits" or "license" for more information.
 ```
 in another terminal:
 ```sh
-gdb -p 2031925 python
+$ sudo bash -c 'echo 0 > /proc/sys/kernel/yama/ptrace_scope'
+$ gdb -p 2031925 python
 ...
 (gdb) break THPVariable_tensor
 Function "THPVariable_tensor" not defined.
