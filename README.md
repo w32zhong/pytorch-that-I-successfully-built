@@ -482,5 +482,58 @@ Library::Library(Kind kind, std::string ns, c10::optional<c10::DispatchKey> k, c
   }
 ```
 Basically, for
-* DEF: register a new `lib_` in Dispatcher::singleton(), and call `TORCH_LIBRARY_init_aten(lib_)`
-* IMPL: only call `TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(lib_)`
+* DEF: register a new `lib_` in Dispatcher::singleton(), and call `TORCH_LIBRARY_init_aten(lib_)` in which `m.def(...)` is called.
+* IMPL: only call `TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(lib_)` in which `m.impl(...)` is called.
+
+For `m.def()`, it parses the schema and call `_def` to set `table[op] = schema`:
+```
+# torch/library.h
+class TORCH_API Library final {
+  // ...
+  template <typename Schema>
+  Library& def(
+      Schema&& raw_schema,
+      const std::vector<at::Tag>& tags = {},
+      _RegisterOrVerify rv = _RegisterOrVerify::REGISTER) & {
+    c10::FunctionSchema s = schema(std::forward<Schema>(raw_schema));
+    return _def(std::move(s), nullptr, tags, rv);
+  }
+}
+
+inline c10::FunctionSchema schema(const char* str) {
+  c10::FunctionSchema s = torch::jit::parseSchema(str);
+  s.setAliasAnalysis(c10::AliasAnalysisKind::FROM_SCHEMA);
+  return s;
+}
+
+// aten/src/ATen/core/library.cpp
+Library& Library::_def(c10::FunctionSchema&& schema, c10::OperatorName* out_name, const std::vector<at::Tag>& tags, _RegisterOrVerify rv) & {
+  auto ns_opt = schema.getNamespace();
+  switch (rv) {
+    case _RegisterOrVerify::REGISTER:
+      registrars_.emplace_back(
+        c10::Dispatcher::singleton().registerDef(
+          std::move(schema),
+          debugString(file_, line_),
+          tags
+        )
+      );
+      break;
+  }
+  return *this;
+}
+
+// ./aten/src/ATen/core/dispatch/Dispatcher.cpp
+RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::string debug, std::vector<at::Tag> tags) {
+  OperatorName op_name = schema.operator_name();
+  auto op = findOrRegisterName_(op_name);
+
+  // think this as table[op_name] = schema
+  op.operatorDef_->op.registerSchema(std::move(schema), std::move(debug), std::move(tags));
+  listeners_->callOnOperatorRegistered(op);
+
+  ++op.operatorDef_->def_count;
+  ++op.operatorDef_->def_and_impl_count;
+  //...
+}
+```
