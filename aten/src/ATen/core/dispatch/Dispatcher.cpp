@@ -161,6 +161,7 @@ OperatorHandle Dispatcher::findOrRegisterName_(const OperatorName& op_name) {
 
   operators_.emplace_back(OperatorName(op_name));
   OperatorHandle handle(--operators_.end());
+  ::std::cout<< "register name " << op_name.name << "\n";
   operatorLookupTable_.write([&] (ska::flat_hash_map<OperatorName, OperatorHandle>& operatorLookupTable) {
     operatorLookupTable.emplace(op_name, handle);
   });
@@ -189,6 +190,7 @@ RegistrationHandleRAII Dispatcher::registerLibrary(std::string ns, std::string d
     "Previous registration of TORCH_LIBRARY was ",
     found->second, "; latest registration was ", debug
   );
+  ::std::cout<< "register lib " << ns << " @ " << debug << "\n";
   libraries_.emplace(ns, std::move(debug));
   return RegistrationHandleRAII([guard = this->guard_, this, ns] {
     std::lock_guard<std::mutex> lock(guard->mutex);
@@ -208,12 +210,16 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
   // we need a lock to avoid concurrent writes
   std::lock_guard<std::mutex> lock(guard_->mutex);
 
+  ::std::cout<< "register def " << schema << " @ " << debug << "\n";
+
   OperatorName op_name = schema.operator_name();
   auto op = findOrRegisterName_(op_name);
 
   TORCH_CHECK(op.operatorDef_->def_count == 0, "Tried to register an operator (", schema, ") with the same name and overload name multiple times.",
                                                     " Each overload's schema should only be registered with a single call to def().",
                                                     " Duplicate registration: ", debug, ". Original registration: ", op.operatorDef_->op.debug());
+
+  // think this as table[op_name] = schema
   op.operatorDef_->op.registerSchema(std::move(schema), std::move(debug), std::move(tags));
   listeners_->callOnOperatorRegistered(op);
 

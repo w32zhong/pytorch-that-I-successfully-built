@@ -373,8 +373,14 @@ TORCH_LIBRARY(aten, m) {
   m.def("empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor", {at::Tag::core, at::Tag::pt2_compliant_tag});
 }
 
-// aten/src/ATen/ConjugateFallback.cpp
-TORCH_LIBRARY_IMPL(aten, Conjugate, m, 123) {
+// ./build/aten/src/ATen/RegisterCPU.cpp
+TORCH_LIBRARY_IMPL(aten, CPU, m, 123) {
+  m.impl("empty.memory_format", TORCH_FN(wrapper_CPU_memory_format_empty));
+}
+// similarly in ./build/aten/src/ATen/RegisterCUDA.cpp
+// similarly in ./build/aten/src/ATen/RegisterMkldnnCPU.cpp
+// fallback in aten/src/ATen/ConjugateFallback.cpp, for example:
+TORCH_LIBRARY_IMPL(aten, Conjugate, m, 124) {
   m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
 }
 ```
@@ -396,17 +402,17 @@ void TORCH_LIBRARY_init_aten(torch::Library& m) {
     m.def("empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor", {at::Tag::core, at::Tag::pt2_compliant_tag});
 }
 
-// aten/src/ATen/ConjugateFallback.cpp
+// taken ./build/aten/src/ATen/RegisterCPU.cpp as an example:
 static void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library&);
 static const torch::detail::TorchLibraryInit
     TORCH_LIBRARY_IMPL_static_init_aten_Conjugate_123(
         torch::Library::IMPL,
         (
-            c10::impl::dispatch_key_allowlist_check(c10::DispatchKey::Conjugate)?
+            c10::impl::dispatch_key_allowlist_check(c10::DispatchKey::CPU)?
             &TORCH_LIBRARY_IMPL_init_aten_Conjugate_123 : [](torch::Library&) -> void {}
         ),
         "aten",
-        c10::make_optional(c10::DispatchKey::Conjugate),
+        c10::make_optional(c10::DispatchKey::CPU),
         "filename.cpp",
         1234
     );
@@ -417,7 +423,7 @@ void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library &m) {
 
 The torch::detail::TorchLibraryInit and Library classes:
 ```c
-# torch/library.h
+// torch/library.h
 namespace detail {
 class TorchLibraryInit final {
  private:
@@ -538,4 +544,9 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
   ++op.operatorDef_->def_and_impl_count;
   //...
 }
+```
+
+For `m.impl()`, recall one of its CPU implementation is
+```
+m.impl("empty.memory_format", TORCH_FN(wrapper_CPU_memory_format_empty));
 ```
