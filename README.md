@@ -446,7 +446,7 @@ class TORCH_API Library final {
     DEF,
     IMPL,
     FRAGMENT,
-  };
+  }
 
  // ...
 
@@ -456,7 +456,7 @@ class TORCH_API Library final {
   c10::optional<c10::DispatchKey> dispatch_key_;
   const char* file_;
   uint32_t line_;
-}
+};
 
 // aten/src/ATen/core/library.cpp 
 Library::Library(Kind kind, std::string ns, c10::optional<c10::DispatchKey> k, const char* file, uint32_t line)
@@ -496,13 +496,13 @@ class TORCH_API Library final {
       Schema&& raw_schema,
       const std::vector<at::Tag>& tags = {},
       _RegisterOrVerify rv = _RegisterOrVerify::REGISTER) & {
-    c10::FunctionSchema s = schema(std::forward<Schema>(raw_schema));
+    c10::FunctionSchema s = schema(std::forward<Schema>(raw_schema)); // step 1
     return _def(std::move(s), nullptr, tags, rv);
   }
-}
+};
 
 inline c10::FunctionSchema schema(const char* str) {
-  c10::FunctionSchema s = torch::jit::parseSchema(str);
+  c10::FunctionSchema s = torch::jit::parseSchema(str); // step 2 (parse)
   s.setAliasAnalysis(c10::AliasAnalysisKind::FROM_SCHEMA);
   return s;
 }
@@ -514,7 +514,7 @@ Library& Library::_def(c10::FunctionSchema&& schema, c10::OperatorName* out_name
     case _RegisterOrVerify::REGISTER:
       registrars_.emplace_back(
         c10::Dispatcher::singleton().registerDef(
-          std::move(schema),
+          std::move(schema), // step 3
           debugString(file_, line_),
           tags
         )
@@ -529,6 +529,7 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
   OperatorName op_name = schema.operator_name();
   auto op = findOrRegisterName_(op_name);
 
+  // step 4 (actual register)
   // think this as table[op_name] = schema
   op.operatorDef_->op.registerSchema(std::move(schema), std::move(debug), std::move(tags));
   listeners_->callOnOperatorRegistered(op);
