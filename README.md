@@ -486,7 +486,7 @@ Basically, for
 * IMPL: only call `TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(lib_)` in which `m.impl(...)` is called.
 
 For `m.def()`, it parses the schema and call `_def` to set `table[op] = schema`:
-```
+```c
 # torch/library.h
 class TORCH_API Library final {
   // ...
