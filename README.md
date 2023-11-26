@@ -340,7 +340,7 @@ ninja -t browse -p 8080 torch_python
 
 ## Source internal
 ```c
-# torch/library.h
+// torch/library.h
 #define TORCH_LIBRARY_IMPL(ns, k, m, uid)                                 \
   static void C10_CONCATENATE(                                            \
       TORCH_LIBRARY_IMPL_init_##ns##_##k##_, uid)(torch::Library&);       \
@@ -357,7 +357,7 @@ ninja -t browse -p 8080 torch_python
   void C10_CONCATENATE(                                                   \
       TORCH_LIBRARY_IMPL_init_##ns##_##k##_, uid)(torch::Library & m)
 
-# aten/src/ATen/ConjugateFallback.cpp
+// aten/src/ATen/ConjugateFallback.cpp
 TORCH_LIBRARY_IMPL(aten, Conjugate, m, 123) {
   m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
 }
