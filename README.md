@@ -414,7 +414,8 @@ void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library &m) {
     m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
 }
 ```
-torch::detail::TorchLibraryInit class:
+
+The torch::detail::TorchLibraryInit and Library classes:
 ```c
 # torch/library.h
 namespace detail {
@@ -487,7 +488,7 @@ Basically, for
 
 For `m.def()`, it parses the schema and call `_def` to set `table[op] = schema`:
 ```c
-# torch/library.h
+// torch/library.h
 class TORCH_API Library final {
   // ...
   template <typename Schema>
