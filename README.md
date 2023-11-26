@@ -341,6 +341,17 @@ ninja -t browse -p 8080 torch_python
 ## Source internal
 ```c
 // torch/library.h
+#define TORCH_LIBRARY(ns, m)                                                   \
+  static void TORCH_LIBRARY_init_##ns(torch::Library&);                        \
+  static const torch::detail::TorchLibraryInit TORCH_LIBRARY_static_init_##ns( \
+      torch::Library::DEF,                                                     \
+      &TORCH_LIBRARY_init_##ns,                                                \
+      #ns,                                                                     \
+      c10::nullopt,                                                            \
+      __FILE__,                                                                \
+      __LINE__);                                                               \
+  void TORCH_LIBRARY_init_##ns(torch::Library& m)
+
 #define TORCH_LIBRARY_IMPL(ns, k, m, uid)                                 \
   static void C10_CONCATENATE(                                            \
       TORCH_LIBRARY_IMPL_init_##ns##_##k##_, uid)(torch::Library&);       \
@@ -357,6 +368,11 @@ ninja -t browse -p 8080 torch_python
   void C10_CONCATENATE(                                                   \
       TORCH_LIBRARY_IMPL_init_##ns##_##k##_, uid)(torch::Library & m)
 
+// build/aten/src/ATen/RegisterSchema.cpp
+TORCH_LIBRARY(aten, m) {
+  m.def("empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor", {at::Tag::core, at::Tag::pt2_compliant_tag});
+}
+
 // aten/src/ATen/ConjugateFallback.cpp
 TORCH_LIBRARY_IMPL(aten, Conjugate, m, 123) {
   m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
@@ -365,6 +381,22 @@ TORCH_LIBRARY_IMPL(aten, Conjugate, m, 123) {
 
 After macro expansion:
 ```c
+// build/aten/src/ATen/RegisterSchema.cpp
+static void TORCH_LIBRARY_init_aten(torch::Library&);
+static const torch::detail::TorchLibraryInit
+    TORCH_LIBRARY_static_init_aten(
+        torch::Library::DEF,
+        &TORCH_LIBRARY_init_aten,
+        "aten",
+        c10::nullopt,
+        "filename.cpp",
+        4321
+    );
+void TORCH_LIBRARY_init_aten(torch::Library& m) {
+    m.def("empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor", {at::Tag::core, at::Tag::pt2_compliant_tag});
+}
+
+// aten/src/ATen/ConjugateFallback.cpp
 static void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library&);
 static const torch::detail::TorchLibraryInit
     TORCH_LIBRARY_IMPL_static_init_aten_Conjugate_123(
