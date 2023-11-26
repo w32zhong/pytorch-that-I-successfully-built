@@ -546,7 +546,7 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
 }
 ```
 
-For `m.impl()`, recall one of its CPU implementation is
-```
+For `m.impl()`, recall one of its implementation on CPU backend is
+```c
 m.impl("empty.memory_format", TORCH_FN(wrapper_CPU_memory_format_empty));
 ```
