@@ -224,6 +224,11 @@ Alternatively, in one command:
 gdb -ex "b initModule" -ex run --args python hello-world.py
 ```
 
+and to add a breakpoint at `file:line`:
+```sh
+gdb -ex "b library.cpp:228" -ex run python
+```
+
 To debug a already running python:
 ```sh
 $ python

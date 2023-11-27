@@ -338,6 +338,10 @@ RegistrationHandleRAII Dispatcher::registerImpl(
 
   auto op = findOrRegisterName_(op_name);
 
+  if (op_name.name == "aten::dot") {
+    ::std::cout << "\n";
+  }
+
   auto handle = op.operatorDef_->op.registerKernel(
     *this,
     dispatch_key,

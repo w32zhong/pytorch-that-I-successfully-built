@@ -224,6 +224,9 @@ Library& Library::_impl(const char* name_str, CppFunction&& f, _RegisterOrVerify
     ERROR_CONTEXT
   );
   auto dispatch_key = f.dispatch_key_.has_value() ? f.dispatch_key_ : dispatch_key_;
+  if (name.name == "aten::dot") {
+    ::std::cout << dispatch_key.has_value() << "\n";
+  }
   switch (rv) {
     case _RegisterOrVerify::REGISTER:
       registrars_.emplace_back(
