@@ -617,3 +617,204 @@ RegistrationHandleRAII Dispatcher::registerImpl(
   // ...
 }
 ```
+
+### Tensor allocation
+For a tensor allocation like:
+```py
+a=torch.tensor([1])
+```
+
+The code to run:
+```c
+// torch/csrc/Module.cpp
+PyObject* initModule() {
+  static struct PyModuleDef torchmodule = {
+      PyModuleDef_HEAD_INIT, "torch._C", nullptr, -1, methods.data()
+  };
+  module = PyModule_Create(&torchmodule);
+  ASSERT_TRUE(THPVariable_initModule(module));
+}
+
+// ./torch/csrc/autograd/python_variable.cpp
+bool THPVariable_initModule(PyObject* module) {
+  torch::autograd::initTorchFunctions(module);
+}
+
+// ./torch/csrc/autograd/python_torch_functions_manual.cpp
+void initTorchFunctions(PyObject* module) {
+  static std::vector<PyMethodDef> torch_functions;
+  gatherTorchFunctions(torch_functions); // gather common functions like tensor to torch_functions
+  THPVariableFunctions.tp_methods = torch_functions.data();
+  THPVariableFunctionsModule = PyType_GenericNew(&THPVariableFunctions, Py_None, Py_None);
+  PyModule_AddObject(module, "_VariableFunctions", THPVariableFunctionsModule);
+}
+```
+where `_C._VariableFunctions` are extracted to `torch.*` in `torch/__init__.py`:
+```py
+# torch/__init__.py
+for name in dir(_C._VariableFunctions):
+    obj = getattr(_C._VariableFunctions, name)
+    obj.__module__ = 'torch'
+    if not name.startswith("_"):
+        __all__.append(name)
+```
+
+And in `gatherTorchFunctions`:
+```c
+// ./torch/csrc/autograd/python_torch_functions_manual.cpp
+static PyMethodDef torch_functions_manual[] = {
+    {"asarray",
+     castPyCFunctionWithKeywords(THPVariable_asarray),
+     METH_VARARGS | METH_KEYWORDS | METH_STATIC,
+     nullptr},
+     // ...
+    {"tensor",
+     castPyCFunctionWithKeywords(THPVariable_tensor),
+     METH_VARARGS | METH_KEYWORDS | METH_STATIC,
+     nullptr},
+};
+void gatherTorchFunctions(std::vector<PyMethodDef>& torch_functions) {
+  constexpr size_t num_functions =
+      sizeof(torch_functions_manual) / sizeof(torch_functions_manual[0]);
+  torch_functions.assign(
+      torch_functions_manual, torch_functions_manual + num_functions);
+}
+
+// ./torch/csrc/autograd/python_torch_functions_manual.cpp
+static PyObject* THPVariable_tensor(
+    PyObject* self,
+    PyObject* args,
+    PyObject* kwargs) {
+
+  static PythonArgParser parser({
+      "tensor(PyObject* data, *, ScalarType dtype=None, Device? device=None, bool pin_memory=False, bool requires_grad=False, DimnameList? names=None)",
+  });
+
+  ParsedArgs<ctor_num_args> parsed_args;
+  auto r = parser.parse(args, kwargs, parsed_args);
+  return THPVariable_Wrap(torch::utils::tensor_ctor(
+      torch::tensors::get_default_dispatch_key(),
+      torch::tensors::get_default_scalar_type(),
+      r));
+}
+
+// ./torch/csrc/utils/tensor_new.cpp
+Tensor tensor_ctor(
+    c10::DispatchKey dispatch_key,
+    at::ScalarType scalar_type,
+    PythonArgs& r) {
+
+    PyObject* data = r.pyobject(0);
+    bool type_inference = r.isNone(1);
+    bool pin_memory = r.toBool(3);
+    bool args_requires_grad = r.toBool(4);
+    auto new_tensor = internal_new_from_data(
+        typeIdWithDefault(r, 2, dispatch_key),
+        r.scalartypeWithDefault(1, scalar_type),
+        r.deviceOptional(2),
+        data,
+        /*copy_variables=*/true,
+        /*copy_numpy=*/true,
+        /*type_inference=*/type_inference,
+        pin_memory);
+    new_tensor.detach_(); // ensure new_tensor a leaf node
+    new_tensor.set_requires_grad(args_requires_grad);
+    return new_tensor;
+}
+
+Tensor internal_new_from_data(
+    c10::TensorOptions options,
+    at::ScalarType scalar_type,
+    c10::optional<Device> device_opt,
+    PyObject* data,
+    bool copy_variables,
+    bool copy_numpy,
+    bool type_inference,
+    bool pin_memory = false) {
+
+  auto device = device_opt.has_value() ? *device_opt : options.device();
+  auto sizes = compute_sizes(data, scalar_type);
+  ScalarType inferred_scalar_type =
+      type_inference ? infer_scalar_type(data) : scalar_type;
+  Tensor tensor;
+  {
+    tensor = at::empty(sizes, opts.pinned_memory(pin_memory));
+    recursive_store(
+      (char*)tensor.data_ptr(),
+      tensor.sizes(),
+      tensor.strides(),
+      0,
+      inferred_scalar_type,
+      tensor.dtype().itemsize(),
+      data);
+    tensor = tensor.to(device, inferred_scalar_type);
+  }
+
+  return at::lift_fresh(tensor);
+}
+
+void recursive_store(
+    char* data,
+    IntArrayRef sizes,
+    IntArrayRef strides,
+    int64_t dim,
+    ScalarType scalarType,
+    size_t elementSize,
+    PyObject* obj) {
+  int64_t ndim = static_cast<int64_t>(sizes.size());
+  bool is_symfloat = torch::is_symfloat(obj);
+  bool is_symint = torch::is_symint(obj);
+  if (dim == ndim) {
+    if (is_symfloat) {
+      auto new_obj = py::reinterpret_borrow<py::object>(obj);
+      auto val = new_obj.cast<c10::SymFloat>();
+      switch (elementSize) {
+        case 8:
+          *reinterpret_cast<double*>(data) = val;
+          break;
+        case 4:
+          *reinterpret_cast<float*>(data) = static_cast<float>(val);
+          break;
+      }
+      return;
+    }
+    if (is_symint) {
+      // ...
+    }
+    torch::utils::store_scalar(data, scalarType, obj);
+    return;
+  }
+
+  auto n = sizes[dim];
+  auto seq = THPObjectPtr(PySequence_Fast(obj, "not a sequence"));
+  PyObject** items = PySequence_Fast_ITEMS(seq.get());
+  for (const auto i : c10::irange(n)) {
+    recursive_store(
+        data, sizes, strides, dim + 1, scalarType, elementSize, items[i]);
+    data += strides[dim] * elementSize;
+  }
+}
+
+// ./torch/csrc/utils/python_scalars.h
+inline void store_scalar(void* data, at::ScalarType scalarType, PyObject* obj) {
+  switch (scalarType) {
+    case at::kByte:
+      *(uint8_t*)data = unpackIntegral<uint8_t>(obj, "uint8");
+      break;
+    case at::kInt:
+      *(int32_t*)data = unpackIntegral<int32_t>(obj, "int32");
+      break;
+    case at::kHalf:
+      *(at::Half*)data =
+          at::convert<at::Half, double>(THPUtils_unpackDouble(obj));
+      break;
+    case at::kFloat:
+      *(float*)data = (float)THPUtils_unpackDouble(obj);
+      break;
+    case at::kDouble:
+      *(double*)data = THPUtils_unpackDouble(obj);
+      break;
+    // ...
+  }
+}
+```
