@@ -947,3 +947,15 @@ c10::Dispatcher::singleton()
     .typed<empty_memory_format::schema>() /* TypedOperatorHandle */
     .call() /* calling Dispatcher::singleton().call() */
 ```
+and its call() is invoking:
+```c
+// ./aten/src/ATen/core/dispatch/Dispatcher.h
+template<class Return, class... Args>
+C10_ALWAYS_INLINE_UNLESS_MOBILE Return
+Dispatcher::call(const TypedOperatorHandle<Return(Args...)>& op, Args... args) const {
+  auto dispatchKeySet = op.operatorDef_->op.dispatchKeyExtractor()
+    .template getDispatchKeySetUnboxed<Args...>(args...);
+  const KernelFunction& kernel = op.operatorDef_->op.lookup(dispatchKeySet);
+  return kernel.template call<Return, Args...>(op, dispatchKeySet, std::forward<Args>(args)...);
+}
+```
