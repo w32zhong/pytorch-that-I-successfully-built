@@ -963,6 +963,30 @@ Dispatcher::call(const TypedOperatorHandle<Return(Args...)>& op, Args... args) c
 // ./aten/src/ATen/core/boxing/KernelFunction_impl.h
 template<class Return, class... Args>
 C10_ALWAYS_INLINE Return KernelFunction::call(const OperatorHandle& opHandle, DispatchKeySet dispatchKeySet, Args... args) const {
+    if (guts::disjunction<has_symint<Args>...>::value) {
+      if (sym_unboxed_kernel_func_ != nullptr) {
+        auto *functor = boxed_kernel_func_.getFunctor();
+        ::std::cout << "callUnboxedKernelFunction with sym" << "\n";
+        return callUnboxedKernelFunction<Return, Args...>(
+            sym_unboxed_kernel_func_, functor, dispatchKeySet, std::forward<Args>(args)...);
+      }
+
+      if (unboxed_kernel_func_ != nullptr) {
+        auto *functor = boxed_kernel_func_.getFunctor();
+        ::std::cout << "callUnboxedKernelFunction with sym and unboxed" << "\n";
+        return callUnboxedKernelFunction<Return, typename remove_symint<Args>::type...>(
+            unboxed_kernel_func_, functor, dispatchKeySet, unpackSymInt<Args>(args)...);
+      }
+    } else {
+      if (C10_LIKELY(unboxed_kernel_func_ != nullptr)) {
+        auto *functor = boxed_kernel_func_.getFunctor();
+        ::std::cout << "callUnboxedKernelFunction with unboxed" << "\n";
+        return callUnboxedKernelFunction<Return, Args...>(
+            unboxed_kernel_func_, functor, dispatchKeySet, std::forward<Args>(args)...);
+      }
+    }
+
+    ::std::cout << "call impl::BoxedKernelWrapper" << "\n";
     return impl::BoxedKernelWrapper<Return(Args...)>::call(
         boxed_kernel_func_,
         opHandle,
@@ -970,25 +994,4 @@ C10_ALWAYS_INLINE Return KernelFunction::call(const OperatorHandle& opHandle, Di
         std::forward<Args>(args)...
     );
 }
-
-// ./aten/src/ATen/core/boxing/impl/boxing.h 
-template <class Result, class... Args>
-struct BoxedKernelWrapper<
-  Result(Args...),
-  std::enable_if_t<
-    can_box_all<Args...>::value && can_unbox<Result>::value && !is_tuple_of_mutable_tensor_refs<Result>::value,
-    void
-  >
-> {
-  static Result call(
-    const BoxedKernel& boxed_kernel_func,
-    const OperatorHandle& opHandle,
-    DispatchKeySet dispatchKeySet,
-    Args... args
-  ) {
-    torch::jit::Stack stack = boxArgs<Args...>(std::forward<Args>(args)...);
-    boxed_kernel_func.callBoxed(opHandle, dispatchKeySet, &stack);
-    return PopResult<Result>::call(stack);
-  }
-};
 ```

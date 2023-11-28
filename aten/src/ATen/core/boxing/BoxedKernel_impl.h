@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 
 namespace c10 {
 
@@ -38,6 +39,7 @@ inline void BoxedKernel::callBoxed(const OperatorHandle& opHandle, DispatchKeySe
         boxed_kernel_func_ != nullptr,
         "Tried to call BoxedKernel::callBoxed() on an uninitialized BoxedKernel."
     );
+    ::std::cout << "boxed func: " << boxed_kernel_func_ << "\n";
     (*boxed_kernel_func_)(functor_.get(), opHandle, dispatchKeySet, stack);
 }
 

@@ -1,3 +1,4 @@
+#include <iostream>
 #include <ATen/core/boxing/impl/boxing.h>
 #include <ATen/core/boxing/impl/make_boxed_from_unboxed_functor.h>
 #include <ATen/core/boxing/impl/WrapFunctionIntoFunctor.h>
@@ -47,6 +48,7 @@ template<class Return, class... Args>
 inline Return callUnboxedKernelFunction(void* unboxed_kernel_func, OperatorKernel* functor, DispatchKeySet dispatchKeySet, Args&&... args) {
     using ActualSignature = Return (OperatorKernel*, DispatchKeySet, Args...);
     ActualSignature* func = reinterpret_cast<ActualSignature*>(unboxed_kernel_func);
+    ::std::cout << "unboxed func: " << func << "\n";
     return (*func)(functor, dispatchKeySet, std::forward<Args>(args)...);
 }
 
@@ -87,23 +89,27 @@ C10_ALWAYS_INLINE Return KernelFunction::call(const OperatorHandle& opHandle, Di
     if (guts::disjunction<has_symint<Args>...>::value) {
       if (sym_unboxed_kernel_func_ != nullptr) {
         auto *functor = boxed_kernel_func_.getFunctor();
+        ::std::cout << "callUnboxedKernelFunction with sym" << "\n";
         return callUnboxedKernelFunction<Return, Args...>(
             sym_unboxed_kernel_func_, functor, dispatchKeySet, std::forward<Args>(args)...);
       }
 
       if (unboxed_kernel_func_ != nullptr) {
         auto *functor = boxed_kernel_func_.getFunctor();
+        ::std::cout << "callUnboxedKernelFunction with sym and unboxed" << "\n";
         return callUnboxedKernelFunction<Return, typename remove_symint<Args>::type...>(
             unboxed_kernel_func_, functor, dispatchKeySet, unpackSymInt<Args>(args)...);
       }
     } else {
       if (C10_LIKELY(unboxed_kernel_func_ != nullptr)) {
         auto *functor = boxed_kernel_func_.getFunctor();
+        ::std::cout << "callUnboxedKernelFunction with unboxed" << "\n";
         return callUnboxedKernelFunction<Return, Args...>(
             unboxed_kernel_func_, functor, dispatchKeySet, std::forward<Args>(args)...);
       }
     }
 
+    ::std::cout << "call impl::BoxedKernelWrapper" << "\n";
     return impl::BoxedKernelWrapper<Return(Args...)>::call(
         boxed_kernel_func_,
         opHandle,
