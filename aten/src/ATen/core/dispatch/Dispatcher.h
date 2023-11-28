@@ -655,21 +655,10 @@ C10_ALWAYS_INLINE_UNLESS_MOBILE Return Dispatcher::call(const TypedOperatorHandl
   detail::unused_arg_(args...);  // workaround for a false-positive warning about unused parameters in gcc 5
   auto dispatchKeySet = op.operatorDef_->op.dispatchKeyExtractor()
     .template getDispatchKeySetUnboxed<Args...>(args...);
-#ifndef NDEBUG
-  DispatchTraceNestingGuard debug_guard;
-  if (show_dispatch_trace()) {
-      auto nesting_value = dispatch_trace_nesting_value();
-      for (int64_t i = 0; i < nesting_value; ++i) std::cerr << " ";
-      std::cerr << "[call] op=[" << op.operator_name() << "], key=[" << toString(dispatchKeySet.highestPriorityTypeId()) << "]" << std::endl;
-  }
-#endif
+
+  std::cerr << "[call] op=[" << op.operator_name() << "], key=[" << dispatchKeySet.highestPriorityTypeId() << "]" << std::endl;
+
   const KernelFunction& kernel = op.operatorDef_->op.lookup(dispatchKeySet);
-#ifndef PYTORCH_DISABLE_PER_OP_PROFILING
-  auto step_callbacks = at::getStepCallbacksUnlessEmpty(at::RecordScope::FUNCTION);
-  if (C10_UNLIKELY(step_callbacks.has_value() && op.operatorDef_->op.isObserved())) {
-    return callWithDispatchKeySlowPath<Return, Args...>(op, *step_callbacks, dispatchKeySet, kernel, std::forward<Args>(args)...);
-  }
-#endif  // PYTORCH_DISABLE_PER_OP_PROFILING
   return kernel.template call<Return, Args...>(op, dispatchKeySet, std::forward<Args>(args)...);
 }
 

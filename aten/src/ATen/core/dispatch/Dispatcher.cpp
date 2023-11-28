@@ -161,8 +161,10 @@ OperatorHandle Dispatcher::findOrRegisterName_(const OperatorName& op_name) {
 
   operators_.emplace_back(OperatorName(op_name));
   OperatorHandle handle(--operators_.end());
-  ::std::cout<< "register name " << op_name.name << "\n";
   operatorLookupTable_.write([&] (ska::flat_hash_map<OperatorName, OperatorHandle>& operatorLookupTable) {
+  if (op_name.name == "aten::empty") {
+    ::std::cout<< "register op " << op_name.name << " " << op_name.overload_name << "\n";
+  }
     operatorLookupTable.emplace(op_name, handle);
   });
 
@@ -344,10 +346,6 @@ RegistrationHandleRAII Dispatcher::registerImpl(
   std::lock_guard<std::mutex> lock(guard_->mutex);
 
   auto op = findOrRegisterName_(op_name);
-
-  if (op_name.name == "aten::dot") {
-    ::std::cout << "\n";
-  }
 
   auto handle = op.operatorDef_->op.registerKernel(
     *this,
