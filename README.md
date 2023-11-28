@@ -925,7 +925,7 @@ c10::optional<OperatorHandle> Dispatcher::findOp(const OperatorName& op_name) {
 
 By looking at the `OperatorHandle` class code:
 ```c
-
+// ./aten/src/ATen/core/dispatch/Dispatcher.h
 class TORCH_API OperatorHandle {
   template<class FuncType>
   TypedOperatorHandle<FuncType> typed() const {
