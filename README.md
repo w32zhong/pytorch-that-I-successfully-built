@@ -996,7 +996,7 @@ C10_ALWAYS_INLINE Return KernelFunction::call(const OperatorHandle& opHandle, Di
 }
 ```
 
-The implementation is located by finding the `wrapper_CPU_memory_format_empty` function:
+The implementation is located by finding the `wrapper_CPU_memory_format_empty` function (or refer to [native_functions.yaml](aten/src/ATen/native/native_functions.yaml)):
 ```c
 // ./build/aten/src/ATen/RegisterCPU.cpp
 at::Tensor wrapper_CPU_memory_format_empty(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
