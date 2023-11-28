@@ -137,8 +137,7 @@ TensorImpl::TensorImpl(
     const caffe2::TypeMeta data_type,
     c10::optional<c10::Device> device_opt)
     : storage_(std::move(storage)),
-
-      numel_(0),
+      numel_(0), /* number of elements */
       data_type_(data_type),
       device_opt_(device_opt) {
   init_bitfields();

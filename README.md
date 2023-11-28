@@ -1030,12 +1030,61 @@ TensorBase _empty_generic(
     c10::optional<c10::MemoryFormat> memory_format_opt) {
   auto size_bytes = computeStorageNbytesContiguous(size, dtype.itemsize());
   auto storage_impl = c10::make_intrusive<StorageImpl>(
-      c10::StorageImpl::use_byte_size_t(),
       size_bytes,
       allocator,
       /*resizeable=*/true);
   auto tensor = detail::make_tensor_base<TensorImpl>(
       std::move(storage_impl), ks, dtype);
   return tensor;
+}
+```
+
+### Tensor and Storage
+```c
+// ./c10/core/StorageImpl.h
+struct C10_API StorageImpl : public c10::intrusive_ptr_target {
+ public:
+  StorageImpl(
+      SymInt size_bytes,
+      at::DataPtr data_ptr,
+      at::Allocator* allocator,
+      bool resizable)
+      : data_ptr_(std::move(data_ptr)),
+        size_bytes_(std::move(size_bytes)),
+        size_bytes_is_heap_allocated_(size_bytes_.is_heap_allocated()),
+        resizable_(resizable),
+        received_cuda_(false),
+        allocator_(allocator) {
+  }
+};
+
+// ./aten/src/ATen/core/TensorBase.h
+template <typename T, typename... Args>
+TensorBase make_tensor_base(Args&&... args) {
+  return TensorBase(c10::make_intrusive<T>(std::forward<Args>(args)...));
+}
+
+class TORCH_API TensorBase {
+  explicit TensorBase(
+      c10::intrusive_ptr<TensorImpl, UndefinedTensorImpl> tensor_impl)
+      : impl_(std::move(tensor_impl)) {
+  }
+};
+
+// ./c10/core/TensorImpl.cpp
+TensorImpl::TensorImpl(
+    Storage&& storage,
+    DispatchKeySet key_set,
+    const caffe2::TypeMeta data_type,
+    c10::optional<c10::Device> device_opt)
+    : storage_(std::move(storage)),
+      numel_(0), /* number of elements */
+      data_type_(data_type),
+      device_opt_(device_opt) {
+  init_bitfields();
+  if (!is_inference()) {
+    auto k = key_set.highestBackendKey();
+    key_set_ = key_set | getAutogradRelatedKeySetFromBackend(k);
+  }
 }
 ```
