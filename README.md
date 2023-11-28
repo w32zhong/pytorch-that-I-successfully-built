@@ -953,9 +953,42 @@ and its call() is invoking:
 template<class Return, class... Args>
 C10_ALWAYS_INLINE_UNLESS_MOBILE Return
 Dispatcher::call(const TypedOperatorHandle<Return(Args...)>& op, Args... args) const {
-  auto dispatchKeySet = op.operatorDef_->op.dispatchKeyExtractor()
+  c10::DispatchKeySet dispatchKeySet = op.operatorDef_->op.dispatchKeyExtractor()
     .template getDispatchKeySetUnboxed<Args...>(args...);
+  std::cerr << "[call] op=[" << op.operator_name() << "], key=[" << dispatchKeySet.highestPriorityTypeId() << "]" << std::endl;
   const KernelFunction& kernel = op.operatorDef_->op.lookup(dispatchKeySet);
   return kernel.template call<Return, Args...>(op, dispatchKeySet, std::forward<Args>(args)...);
 }
+
+// ./aten/src/ATen/core/boxing/KernelFunction_impl.h
+template<class Return, class... Args>
+C10_ALWAYS_INLINE Return KernelFunction::call(const OperatorHandle& opHandle, DispatchKeySet dispatchKeySet, Args... args) const {
+    return impl::BoxedKernelWrapper<Return(Args...)>::call(
+        boxed_kernel_func_,
+        opHandle,
+        dispatchKeySet,
+        std::forward<Args>(args)...
+    );
+}
+
+// ./aten/src/ATen/core/boxing/impl/boxing.h 
+template <class Result, class... Args>
+struct BoxedKernelWrapper<
+  Result(Args...),
+  std::enable_if_t<
+    can_box_all<Args...>::value && can_unbox<Result>::value && !is_tuple_of_mutable_tensor_refs<Result>::value,
+    void
+  >
+> {
+  static Result call(
+    const BoxedKernel& boxed_kernel_func,
+    const OperatorHandle& opHandle,
+    DispatchKeySet dispatchKeySet,
+    Args... args
+  ) {
+    torch::jit::Stack stack = boxArgs<Args...>(std::forward<Args>(args)...);
+    boxed_kernel_func.callBoxed(opHandle, dispatchKeySet, &stack);
+    return PopResult<Result>::call(stack);
+  }
+};
 ```
