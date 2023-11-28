@@ -521,7 +521,6 @@ inline c10::FunctionSchema schema(const char* str) {
 
 // aten/src/ATen/core/library.cpp
 Library& Library::_def(c10::FunctionSchema&& schema, c10::OperatorName* out_name, const std::vector<at::Tag>& tags, _RegisterOrVerify rv) & {
-  auto ns_opt = schema.getNamespace();
   switch (rv) {
     case _RegisterOrVerify::REGISTER:
       registrars_.emplace_back(
@@ -538,17 +537,20 @@ Library& Library::_def(c10::FunctionSchema&& schema, c10::OperatorName* out_name
 
 // ./aten/src/ATen/core/dispatch/Dispatcher.cpp
 RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::string debug, std::vector<at::Tag> tags) {
-  OperatorName op_name = schema.operator_name();
-  auto op = findOrRegisterName_(op_name);
+  OperatorName op_name = schema.operator_name(); // op_name is just schema.name_
+  // (gdb) whatis schema.name_
+  // type = c10::OperatorName
+  // (gdb) whatis op_name
+  // type = c10::OperatorName
+
+  if (op_name.name == "aten::empty" && op_name.overload_name == "memory_format") {
+    ::std::cout<< "register op " << op_name.name << " " << op_name.overload_name << " with " << schema << " @ " << debug << "\n";
+  }
 
   // step 4 (actual register)
-  // think this as table[op_name] = schema
+  // think the next two lines as table[op_name] = schema
+  OperatorHandle op = findOrRegisterName_(op_name);
   op.operatorDef_->op.registerSchema(std::move(schema), std::move(debug), std::move(tags));
-  listeners_->callOnOperatorRegistered(op);
-
-  ++op.operatorDef_->def_count;
-  ++op.operatorDef_->def_and_impl_count;
-  //...
 }
 
 OperatorHandle Dispatcher::findOrRegisterName_(const OperatorName& op_name) {
