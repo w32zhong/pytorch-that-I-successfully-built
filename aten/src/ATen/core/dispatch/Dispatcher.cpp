@@ -210,9 +210,16 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
   // we need a lock to avoid concurrent writes
   std::lock_guard<std::mutex> lock(guard_->mutex);
 
-  ::std::cout<< "register def " << schema << " @ " << debug << "\n";
+  OperatorName op_name = schema.operator_name(); // op_name is just schema.name_
+  // (gdb) whatis schema.name_
+  // type = c10::OperatorName
+  // (gdb) whatis op_name
+  // type = c10::OperatorName
 
-  OperatorName op_name = schema.operator_name();
+  if (op_name.name == "aten::empty" && op_name.overload_name == "memory_format") {
+    ::std::cout<< "register op " << op_name.name << " " << op_name.overload_name << " with " << schema << " @ " << debug << "\n";
+  }
+
   auto op = findOrRegisterName_(op_name);
 
   TORCH_CHECK(op.operatorDef_->def_count == 0, "Tried to register an operator (", schema, ") with the same name and overload name multiple times.",
