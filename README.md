@@ -420,7 +420,7 @@ static const torch::detail::TorchLibraryInit
             &TORCH_LIBRARY_IMPL_init_aten_Conjugate_123 : [](torch::Library&) -> void {}
         ),
         "aten", // namespace
-        c10::make_optional(c10::DispatchKey::CPU), // CPU is the DispatchKey here
+        c10::make_optional(c10::DispatchKey::CPU), // CPU is the DispatchKey for this "impl"
         "filename.cpp",
         1234
     );
@@ -482,12 +482,10 @@ Library::Library(Kind kind, std::string ns, c10::optional<c10::DispatchKey> k, c
   {
     switch (kind_) {
       case DEF:
-        // Only DEFs require library uniqueness; fragments
-        // don't register a library
         registrars_.emplace_back(
           c10::Dispatcher::singleton().registerLibrary(
             *ns_, debugString(file_, line_)
-          )
+          ) // this will invoke libraries_.emplace(ns, std::move(debug));
         );
         [[fallthrough]];
       case IMPL:
