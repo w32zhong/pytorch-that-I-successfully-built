@@ -738,7 +738,7 @@ Tensor internal_new_from_data(
       type_inference ? infer_scalar_type(data) : scalar_type;
   Tensor tensor;
   {
-    tensor = at::empty(sizes, opts.pinned_memory(pin_memory));
+    tensor = at::empty(sizes, opts.pinned_memory(pin_memory)); // call Operator!
     recursive_store(
       (char*)tensor.data_ptr(),
       tensor.sizes(),
@@ -816,5 +816,41 @@ inline void store_scalar(void* data, at::ScalarType scalarType, PyObject* obj) {
       break;
     // ...
   }
+}
+```
+
+### Operator dispatch
+Starting from
+```c
+// ./torch/csrc/utils/tensor_new.cpp
+tensor = at::empty(sizes, opts.pinned_memory(pin_memory)); // call Operator!
+
+// ./build/aten/src/ATen/ops/empty.h 
+inline at::Tensor empty(at::IntArrayRef size, at::TensorOptions options={}, c10::optional<at::MemoryFormat> memory_format=c10::nullopt) {
+    return at::_ops::empty_memory_format::call(c10::fromIntArrayRefSlow(size), optTypeMetaToScalarType(options.dtype_opt()), options.layout_opt(), options.device_opt(), options.pinned_memory_opt(), c10::impl::check_tensor_options_and_extract_memory_format(options, memory_format));
+}
+
+// ./build/aten/src/ATen/ops/empty_ops.h
+struct TORCH_API empty_memory_format {
+  using schema = at::Tensor (c10::SymIntArrayRef, c10::optional<at::ScalarType>, c10::optional<at::Layout>, c10::optional<at::Device>, c10::optional<bool>, c10::optional<at::MemoryFormat>);
+  using ptr_schema = schema*;
+  // See Note [static constexpr char* members for windows NVCC]
+  static constexpr const char* name = "aten::empty";
+  static constexpr const char* overload_name = "memory_format";
+  static constexpr const char* schema_str = "empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor";
+  static at::Tensor call(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format);
+};
+
+// ./build/aten/src/ATen/Operators_2.cpp
+static C10_NOINLINE c10::TypedOperatorHandle<empty_memory_format::schema>
+create_empty_memory_format_typed_handle() {
+  return c10::Dispatcher::singleton()
+      .findSchemaOrThrow(empty_memory_format::name, empty_memory_format::overload_name)
+      .typed<empty_memory_format::schema>();
+}
+
+at::Tensor empty_memory_format::call(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
+    static auto op = create_empty_memory_format_typed_handle();
+    return op.call(size, dtype, layout, device, pin_memory, memory_format);
 }
 ```
