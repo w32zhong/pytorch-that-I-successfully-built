@@ -882,6 +882,8 @@ struct OperatorName final {
 // ./aten/src/ATen/core/dispatch/Dispatcher.cpp 
 OperatorHandle Dispatcher::findSchemaOrThrow(const char* name, const char* overload_name) {
   auto it = findSchema({name, overload_name});
+  // (gdb) whatis it
+  // type = c10::optional<c10::OperatorHandle>
   if (!it.has_value()) {
     auto it2 = findOp({name, overload_name});
     if (!it2.has_value()) {
@@ -891,12 +893,14 @@ OperatorHandle Dispatcher::findSchemaOrThrow(const char* name, const char* overl
         " but we found an implementation; did you forget to def() the operator?");
     }
   }
+  // whatis it.value()
+  // type = c10::OperatorHandle &
   return it.value();
 }
 
 c10::optional<OperatorHandle> Dispatcher::findSchema(const OperatorName& op_name) {
   c10::optional_base<c10::OperatorHandle> it = findOp(op_name);
-  // GDB: p (*it).schema().dump()
+  // (gdb) p (*it).schema().dump()
   if (it.has_value()) {
     if (it->hasSchema()) {
       return it;
@@ -917,4 +921,29 @@ c10::optional<OperatorHandle> Dispatcher::findOp(const OperatorName& op_name) {
     return found->second;
   });
 }
+```
+
+By looking at the `OperatorHandle` class code:
+```c
+
+class TORCH_API OperatorHandle {
+  template<class FuncType>
+  TypedOperatorHandle<FuncType> typed() const {
+    return TypedOperatorHandle<FuncType>(operatorIterator_);
+  }
+};
+
+template<class Return, class... Args>
+class TypedOperatorHandle<Return (Args...)> final : public OperatorHandle {
+  C10_ALWAYS_INLINE Return call(Args... args) const {
+    return c10::Dispatcher::singleton().call<Return, Args...>(*this, std::forward<Args>(args)...);
+  }
+};
+```
+we know the result of the aforementioned chain is
+```c
+c10::Dispatcher::singleton()
+    .findSchemaOrThrow(...) /* OperatorHandle */
+    .typed<empty_memory_format::schema>() /* TypedOperatorHandle */
+    .call() /* calling Dispatcher::singleton().call() */
 ```
