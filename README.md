@@ -552,6 +552,22 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
   ++op.operatorDef_->def_and_impl_count;
   //...
 }
+
+OperatorHandle Dispatcher::findOrRegisterName_(const OperatorName& op_name) {
+  const auto found = findOp(op_name);
+  if (found != c10::nullopt) {
+    return *found;
+  }
+
+  operators_.emplace_back(OperatorName(op_name));
+  OperatorHandle handle(--operators_.end());
+  ::std::cout<< "register name " << op_name.name << "\n";
+  operatorLookupTable_.write([&] (ska::flat_hash_map<OperatorName, OperatorHandle>& operatorLookupTable) {
+    operatorLookupTable.emplace(op_name, handle);
+  });
+
+  return handle;
+}
 ```
 
 For `m.impl()`, recall one of its implementation on CPU backend is
@@ -852,5 +868,52 @@ create_empty_memory_format_typed_handle() {
 at::Tensor empty_memory_format::call(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
     static auto op = create_empty_memory_format_typed_handle();
     return op.call(size, dtype, layout, device, pin_memory, memory_format);
+}
+
+// ./aten/src/ATen/core/operator_name.h
+struct OperatorName final {
+  std::string name;
+  std::string overload_name;
+  OperatorName(std::string name, std::string overload_name)
+      : name(std::move(name)), overload_name(std::move(overload_name)) {}
+};
+
+// ./aten/src/ATen/core/dispatch/Dispatcher.cpp 
+OperatorHandle Dispatcher::findSchemaOrThrow(const char* name, const char* overload_name) {
+  auto it = findSchema({name, overload_name});
+  if (!it.has_value()) {
+    auto it2 = findOp({name, overload_name});
+    if (!it2.has_value()) {
+      TORCH_CHECK(false, "Could not find schema for ", name, ".", overload_name);
+    } else {
+      TORCH_CHECK(false, "Could not find schema for ", name, ".", overload_name,
+        " but we found an implementation; did you forget to def() the operator?");
+    }
+  }
+  return it.value();
+}
+
+c10::optional<OperatorHandle> Dispatcher::findSchema(const OperatorName& op_name) {
+  c10::optional_base<c10::OperatorHandle> it = findOp(op_name);
+  // GDB: p (*it).schema().dump()
+  if (it.has_value()) {
+    if (it->hasSchema()) {
+      return it;
+    } else {
+      return c10::nullopt;
+    }
+  } else {
+    return it;
+  }
+}
+
+c10::optional<OperatorHandle> Dispatcher::findOp(const OperatorName& op_name) {
+  return operatorLookupTable_.read([&] (const ska::flat_hash_map<OperatorName, OperatorHandle>& operatorLookupTable) -> c10::optional<OperatorHandle> {
+    auto found = operatorLookupTable.find(op_name);
+    if (found == operatorLookupTable.end()) {
+      return c10::nullopt;
+    }
+    return found->second;
+  });
 }
 ```
