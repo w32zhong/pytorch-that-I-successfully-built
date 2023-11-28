@@ -401,8 +401,8 @@ static const torch::detail::TorchLibraryInit
     TORCH_LIBRARY_static_init_aten(
         torch::Library::DEF,
         &TORCH_LIBRARY_init_aten,
-        "aten",
-        c10::nullopt,
+        "aten", // namespace
+        c10::nullopt, // no DispatchKey for "def"
         "filename.cpp",
         4321
     );
@@ -419,8 +419,8 @@ static const torch::detail::TorchLibraryInit
             c10::impl::dispatch_key_allowlist_check(c10::DispatchKey::CPU)?
             &TORCH_LIBRARY_IMPL_init_aten_Conjugate_123 : [](torch::Library&) -> void {}
         ),
-        "aten",
-        c10::make_optional(c10::DispatchKey::CPU),
+        "aten", // namespace
+        c10::make_optional(c10::DispatchKey::CPU), // CPU is the DispatchKey here
         "filename.cpp",
         1234
     );
