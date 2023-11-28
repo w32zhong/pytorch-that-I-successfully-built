@@ -545,6 +545,8 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
 
   if (op_name.name == "aten::empty" && op_name.overload_name == "memory_format") {
     ::std::cout<< "register op " << op_name.name << " " << op_name.overload_name << " with " << schema << " @ " << debug << "\n";
+    // and it will print:
+    // register op aten::empty memory_format with aten::empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSchema.cpp:6
   }
 
   // step 4 (actual register)
@@ -561,7 +563,6 @@ OperatorHandle Dispatcher::findOrRegisterName_(const OperatorName& op_name) {
 
   operators_.emplace_back(OperatorName(op_name));
   OperatorHandle handle(--operators_.end());
-  ::std::cout<< "register name " << op_name.name << "\n";
   operatorLookupTable_.write([&] (ska::flat_hash_map<OperatorName, OperatorHandle>& operatorLookupTable) {
     operatorLookupTable.emplace(op_name, handle);
   });
