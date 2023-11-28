@@ -411,21 +411,21 @@ void TORCH_LIBRARY_init_aten(torch::Library& m) {
 }
 
 // taken ./build/aten/src/ATen/RegisterCPU.cpp as an example:
-static void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library&);
+static void TORCH_LIBRARY_IMPL_init_aten_CPU_123(torch::Library&);
 static const torch::detail::TorchLibraryInit
-    TORCH_LIBRARY_IMPL_static_init_aten_Conjugate_123(
+    TORCH_LIBRARY_IMPL_static_init_aten_CPU_123(
         torch::Library::IMPL,
         (
             c10::impl::dispatch_key_allowlist_check(c10::DispatchKey::CPU)?
-            &TORCH_LIBRARY_IMPL_init_aten_Conjugate_123 : [](torch::Library&) -> void {}
+            &TORCH_LIBRARY_IMPL_init_aten_CPU_123 : [](torch::Library&) -> void {}
         ),
         "aten", // namespace
         c10::make_optional(c10::DispatchKey::CPU), // CPU is the DispatchKey for this "impl"
         "filename.cpp",
         1234
     );
-void TORCH_LIBRARY_IMPL_init_aten_Conjugate_123(torch::Library &m) {
-    m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
+void TORCH_LIBRARY_IMPL_init_aten_CPU_123(torch::Library &m) {
+    m.impl("empty.memory_format", TORCH_FN(wrapper_CPU_memory_format_empty));
 }
 ```
 
@@ -993,5 +993,49 @@ C10_ALWAYS_INLINE Return KernelFunction::call(const OperatorHandle& opHandle, Di
         dispatchKeySet,
         std::forward<Args>(args)...
     );
+}
+```
+
+The implementation is located by finding the `wrapper_CPU_memory_format_empty` function:
+```c
+// ./build/aten/src/ATen/RegisterCPU.cpp
+at::Tensor wrapper_CPU_memory_format_empty(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
+    // No device check
+  // DeviceGuard omitted
+  ;
+  return at::native::empty_cpu(C10_AS_INTARRAYREF_SLOW(size), dtype, layout, device, pin_memory, memory_format);
+}
+
+// ./aten/src/ATen/native/TensorFactories.cpp 
+Tensor empty_cpu(IntArrayRef size, c10::optional<ScalarType> dtype_opt, c10::optional<Layout> layout_opt,
+                 c10::optional<Device> device_opt, c10::optional<bool> pin_memory_opt, c10::optional<c10::MemoryFormat> memory_format_opt) {
+  Tensor result = at::detail::empty_cpu(size, dtype_opt, layout_opt, device_opt, pin_memory_opt, memory_format_opt);
+  return result;
+}
+
+// ./aten/src/ATen/EmptyTensor.cpp
+TensorBase empty_cpu(IntArrayRef size, ScalarType dtype, bool pin_memory,
+                     c10::optional<c10::MemoryFormat> memory_format_opt) {
+  auto allocator = GetCPUAllocatorMaybePinned(pin_memory);
+  constexpr c10::DispatchKeySet cpu_ks(c10::DispatchKey::CPU);
+  return _empty_generic(size, allocator, cpu_ks, dtype, memory_format_opt);
+}
+
+template <typename T>
+TensorBase _empty_generic(
+    ArrayRef<T> size,
+    c10::Allocator* allocator,
+    c10::DispatchKeySet ks,
+    ScalarType scalar_type,
+    c10::optional<c10::MemoryFormat> memory_format_opt) {
+  auto size_bytes = computeStorageNbytesContiguous(size, dtype.itemsize());
+  auto storage_impl = c10::make_intrusive<StorageImpl>(
+      c10::StorageImpl::use_byte_size_t(),
+      size_bytes,
+      allocator,
+      /*resizeable=*/true);
+  auto tensor = detail::make_tensor_base<TensorImpl>(
+      std::move(storage_impl), ks, dtype);
+  return tensor;
 }
 ```
