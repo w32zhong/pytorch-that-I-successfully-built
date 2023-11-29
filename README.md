@@ -1045,17 +1045,18 @@ TensorBase _empty_generic(
 struct C10_API StorageImpl : public c10::intrusive_ptr_target {
  public:
   StorageImpl(
-      SymInt size_bytes,
-      at::DataPtr data_ptr,
+      use_byte_size_t /*use_byte_size*/,
+      const SymInt& size_bytes,
       at::Allocator* allocator,
       bool resizable)
-      : data_ptr_(std::move(data_ptr)),
-        size_bytes_(std::move(size_bytes)),
-        size_bytes_is_heap_allocated_(size_bytes_.is_heap_allocated()),
-        resizable_(resizable),
-        received_cuda_(false),
-        allocator_(allocator) {
-  }
+      : StorageImpl(
+            use_byte_size_t(),
+            size_bytes,
+            size_bytes.is_heap_allocated()
+                ? allocator->allocate(0)
+                : allocator->allocate(size_bytes.as_int_unchecked()),
+            allocator,
+            resizable) {}
 };
 
 // ./aten/src/ATen/core/TensorBase.h
@@ -1087,4 +1088,35 @@ TensorImpl::TensorImpl(
     key_set_ = key_set | getAutogradRelatedKeySetFromBackend(k);
   }
 }
+```
+
+Remember `recursive_store` will save data on `(char*)tensor.data_ptr()`.
+```c
+// ./aten/src/ATen/core/TensorBase.h
+class TORCH_API TensorBase {
+  void* data_ptr() const {
+    return mutable_data_ptr();
+  }
+
+  void* mutable_data_ptr() const {
+    return this->unsafeGetTensorImpl()->mutable_data();
+  }
+
+  TensorImpl * unsafeGetTensorImpl() const {
+    return impl_.get(); /* get the intrusive_ptr, here is TensorImpl */ 
+  }
+};
+
+// ./c10/core/TensorImpl.h
+struct C10_API TensorImpl : public c10::intrusive_ptr_target {
+  template <typename T>
+  inline T* mutable_data() {
+    if (storage_initialized() && data_type_.Match<T>()) {
+      return static_cast<T*>(storage_.mutable_data()) + storage_offset_;
+    }
+    // ...
+
+ protected:
+  Storage storage_;
+};
 ```
