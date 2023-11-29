@@ -163,12 +163,14 @@ class C10_API SymInt {
   // N.B. It's important to keep this definition in the header
   // as we expect if checks to be folded for mobile builds
   // where `is_heap_allocated` is always false and optimize dead code paths
-  C10_ALWAYS_INLINE bool is_heap_allocated() const {
+  bool is_heap_allocated() const {
+    int64_t res = 0;
 #ifdef C10_MOBILE
-    return false;
+    res = 0;
 #else
-    return !check_range(data_);
+    res = !check_range(data_);
 #endif
+    return res;
   }
 
   SymInt operator+(const SymInt& sci) const;

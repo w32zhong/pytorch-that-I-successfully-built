@@ -1016,7 +1016,7 @@ Tensor empty_cpu(IntArrayRef size, c10::optional<ScalarType> dtype_opt, c10::opt
 // ./aten/src/ATen/EmptyTensor.cpp
 TensorBase empty_cpu(IntArrayRef size, ScalarType dtype, bool pin_memory,
                      c10::optional<c10::MemoryFormat> memory_format_opt) {
-  auto allocator = GetCPUAllocatorMaybePinned(pin_memory);
+  c10::Allocator* allocator = GetCPUAllocatorMaybePinned(pin_memory);
   constexpr c10::DispatchKeySet cpu_ks(c10::DispatchKey::CPU);
   return _empty_generic(size, allocator, cpu_ks, dtype, memory_format_opt);
 }
@@ -1028,12 +1028,14 @@ TensorBase _empty_generic(
     c10::DispatchKeySet ks,
     ScalarType scalar_type,
     c10::optional<c10::MemoryFormat> memory_format_opt) {
-  auto size_bytes = computeStorageNbytesContiguous(size, dtype.itemsize());
+
+  caffe2::TypeMeta dtype = scalarTypeToTypeMeta(scalar_type); /* size_t */
+  unsigned long size_bytes = computeStorageNbytesContiguous(size, dtype.itemsize());
   auto storage_impl = c10::make_intrusive<StorageImpl>(
       size_bytes,
       allocator,
       /*resizeable=*/true);
-  auto tensor = detail::make_tensor_base<TensorImpl>(
+  at::TensorBase tensor = detail::make_tensor_base<TensorImpl>(
       std::move(storage_impl), ks, dtype);
   return tensor;
 }
@@ -1045,12 +1047,12 @@ TensorBase _empty_generic(
 struct C10_API StorageImpl : public c10::intrusive_ptr_target {
  public:
   StorageImpl( /* wrapper #1 */
-      const SymInt& size_bytes,
+      const SymInt& size_bytes, /* size_bytes has been casted to SymInt type */
       at::Allocator* allocator,
       bool resizable)
       : StorageImpl(  /* allocate and call wrapper #2 */
             size_bytes,
-            size_bytes.is_heap_allocated()
+            size_bytes.is_heap_allocated() /* almost always true */
                 ? allocator->allocate(0)
                 : allocator->allocate(size_bytes.as_int_unchecked()),
             allocator,
@@ -1162,6 +1164,29 @@ class C10_API DataPtr {
  public:
   void* mutable_get() {
     return ptr_.get(); /* return the actual C void pointer */
+  }
+};
+```
+
+So the left-over question is how the allocation is done. Recall:
+```c
+size_bytes.is_heap_allocated() /* almost always true */
+    ? allocator->allocate(0)
+    : allocator->allocate(size_bytes.as_int_unchecked()),
+```
+So it will call (e.g., `nbytes = 8` for `torch.tensor([1])` where element type is of `size_t`):
+```c
+struct C10_API DefaultCPUAllocator final : at::Allocator {
+  at::DataPtr allocate(size_t nbytes) const override {
+    void* data = nullptr;
+    try {
+      data = c10::alloc_cpu(nbytes);
+    } catch (c10::Error& e) {
+      profiledCPUMemoryReporter().OutOfMemory(nbytes);
+      throw e;
+    }
+    //     "ptr,  ctx,  ctx_deleter,      device" for the smart pointer to work.
+    return {data, data, &ReportAndDelete, at::Device(at::DeviceType::CPU)};
   }
 };
 ```
