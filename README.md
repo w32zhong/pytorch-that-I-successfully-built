@@ -1044,19 +1044,37 @@ TensorBase _empty_generic(
 // ./c10/core/StorageImpl.h
 struct C10_API StorageImpl : public c10::intrusive_ptr_target {
  public:
-  StorageImpl(
-      use_byte_size_t /*use_byte_size*/,
+  StorageImpl( /* wrapper #1 */
       const SymInt& size_bytes,
       at::Allocator* allocator,
       bool resizable)
-      : StorageImpl(
-            use_byte_size_t(),
+      : StorageImpl(  /* allocate and call wrapper #2 */
             size_bytes,
             size_bytes.is_heap_allocated()
                 ? allocator->allocate(0)
                 : allocator->allocate(size_bytes.as_int_unchecked()),
             allocator,
             resizable) {}
+
+  StorageImpl( /* wrapper #2 */
+      SymInt size_bytes,
+      at::DataPtr data_ptr,
+      at::Allocator* allocator,
+      bool resizable)
+      : data_ptr_(std::move(data_ptr)),
+        size_bytes_(std::move(size_bytes)),
+        size_bytes_is_heap_allocated_(size_bytes_.is_heap_allocated()),
+        resizable_(resizable),
+        received_cuda_(false),
+        allocator_(allocator) {}
+
+ private:
+  DataPtr data_ptr_;
+  SymInt size_bytes_;
+  bool size_bytes_is_heap_allocated_;
+  bool resizable_;
+  bool received_cuda_;
+  Allocator* allocator_;
 };
 
 // ./aten/src/ATen/core/TensorBase.h
@@ -1109,14 +1127,41 @@ class TORCH_API TensorBase {
 
 // ./c10/core/TensorImpl.h
 struct C10_API TensorImpl : public c10::intrusive_ptr_target {
-  template <typename T>
-  inline T* mutable_data() {
-    if (storage_initialized() && data_type_.Match<T>()) {
-      return static_cast<T*>(storage_.mutable_data()) + storage_offset_;
-    }
-    // ...
+
+  inline void* mutable_data() {
+    return data_impl<void>(
+        [this] {
+            return static_cast<char*>(storage_.mutable_data());
+        }
+    );
+  }
+
+  template <typename Void, typename Func>
+  Void* data_impl(const Func& get_data) const {
+    char* data = get_data();
+    return data + data_type_.itemsize() * storage_offset_;
+  }
 
  protected:
   Storage storage_;
+};
+
+// ./c10/core/StorageImpl.h
+struct C10_API StorageImpl : public c10::intrusive_ptr_target {
+  void* mutable_data() {
+    return data_ptr_.mutable_get();
+  }
+};
+
+// ./c10/core/Allocator.h
+class C10_API DataPtr {
+ private:
+  c10::detail::UniqueVoidPtr ptr_; /* an owning smart pointer like unique_ptr */
+  Device device_;
+
+ public:
+  void* mutable_get() {
+    return ptr_.get(); /* return the actual C void pointer */
+  }
 };
 ```
