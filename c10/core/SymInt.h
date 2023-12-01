@@ -8,6 +8,7 @@
 
 #include <numeric>
 #include <type_traits>
+//#include <iostream>
 
 namespace c10 {
 
@@ -168,9 +169,9 @@ class C10_API SymInt {
 #ifdef C10_MOBILE
     res = 0;
 #else
-    res = !check_range(data_);
+    res = !check_range(data_); // !1 = 0
 #endif
-    return res;
+    return res; // 0
   }
 
   SymInt operator+(const SymInt& sci) const;
@@ -242,6 +243,8 @@ class C10_API SymInt {
   // to check if you can pass an integer to SymInt; this is guaranteed
   // to work (it just might heap allocate!)
   static bool check_range(int64_t i) {
+    //::std::cout << MAX_UNREPRESENTABLE_INT << "\n";
+    // -4611686018427387905
     return i > MAX_UNREPRESENTABLE_INT;
   }
 
