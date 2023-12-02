@@ -898,7 +898,6 @@ inline at::Tensor empty(at::IntArrayRef size, at::TensorOptions options={}, c10:
 struct TORCH_API empty_memory_format {
   using schema = at::Tensor (c10::SymIntArrayRef, c10::optional<at::ScalarType>, c10::optional<at::Layout>, c10::optional<at::Device>, c10::optional<bool>, c10::optional<at::MemoryFormat>);
   using ptr_schema = schema*;
-  // See Note [static constexpr char* members for windows NVCC]
   static constexpr const char* name = "aten::empty";
   static constexpr const char* overload_name = "memory_format";
   static constexpr const char* schema_str = "empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor";
