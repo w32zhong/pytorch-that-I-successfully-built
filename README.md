@@ -552,9 +552,9 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
   // type = c10::OperatorName
 
   if (op_name.name == "aten::empty" && op_name.overload_name == "memory_format") {
-    ::std::cout<< "register op " << op_name.name << " " << op_name.overload_name << " with " << schema << " @ " << debug << "\n";
+    ::std::cout<< "register Def " << op_name.name << " " << op_name.overload_name << " with " << schema << " @ " << debug << "\n";
     // and it will print:
-    // register op aten::empty memory_format with aten::empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSchema.cpp:6
+    // register Def aten::empty memory_format with aten::empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSchema.cpp:6
   }
 
   // step 4 (actual register)
@@ -629,6 +629,8 @@ RegistrationHandleRAII Dispatcher::registerImpl(
 ) {
   auto op = findOrRegisterName_(op_name);
 
+  ::std::cout<< "register Impl " << op_name.name << " " << op_name.overload_name << " - " << *dispatch_key << " @ " << debug << "\n";
+
   auto handle = op.operatorDef_->op.registerKernel(
     *this,
     dispatch_key,
@@ -641,6 +643,42 @@ RegistrationHandleRAII Dispatcher::registerImpl(
   ++op.operatorDef_->def_and_impl_count;
   // ...
 }
+```
+
+Overall, this is what happens after `import torch`:
+```
+>>> import torch
+register Impl aten::empty memory_format - Conjugate @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/aten/src/ATen/ConjugateFallback.cpp:21
+register Impl aten::empty memory_format - ZeroTensor @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/aten/src/ATen/ZeroTensorFallback.cpp:90
+register Impl aten::empty memory_format - Negative @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/aten/src/ATen/native/NegateFallback.cpp:23
+register lib sparse @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/aten/src/ATen/native/ao_sparse/library.cpp:9
+register lib quantized @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/aten/src/ATen/native/quantized/library.cpp:16
+register lib _quantized @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/aten/src/ATen/native/quantized/library.cpp:234
+register lib onednn @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/aten/src/ATen/native/quantized/library.cpp:255
+register Impl aten::empty memory_format - BackendSelect @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterBackendSelect.cpp:807
+register Impl aten::empty memory_format - CPU @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterCPU.cpp:31343
+register Impl aten::empty memory_format - Meta @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterMeta.cpp:26984
+register Impl aten::empty memory_format - MkldnnCPU @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterMkldnnCPU.cpp:515
+register Impl aten::empty memory_format - QuantizedCPU @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterQuantizedCPU.cpp:944
+register Impl aten::empty memory_format - QuantizedMeta @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterQuantizedMeta.cpp:105
+register lib aten @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSchema.cpp:6
+register Def aten::empty memory_format with aten::empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSchema.cpp:6
+register Impl aten::empty memory_format - SparseCPU @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSparseCPU.cpp:1387
+register Impl aten::empty memory_format - SparseCsrCPU @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSparseCsrCPU.cpp:1135
+register Impl aten::empty memory_format - SparseMeta @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSparseMeta.cpp:249
+register lib _nnapi @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/aten/src/ATen/nnapi/nnapi_register.cpp:12
+register Impl aten::empty memory_format - Autograd @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/autograd/generated/VariableType_2.cpp:19039
+register Impl aten::empty memory_format - Tracer @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/autograd/generated/TraceType_2.cpp:17346
+register Impl aten::empty memory_format - CUDA @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterCUDA.cpp:44396
+register Impl aten::empty memory_format - QuantizedCUDA @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterQuantizedCUDA.cpp:459
+register Impl aten::empty memory_format - SparseCUDA @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSparseCUDA.cpp:1573
+register Impl aten::empty memory_format - SparseCsrCUDA @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/build/aten/src/ATen/RegisterSparseCsrCUDA.cpp:1276
+register lib cuda @ registered at /home/tk/Desktop/nvme0n1/pytorch-that-I-successfully-built/torch/csrc/jit/cuda/cuda.h:156
+torch initModule BEGIN
+torch initModule END
+register lib rngprims @ registered at /dev/null:228
+register lib prims @ registered at /dev/null:228
+register lib triton @ registered at /dev/null:1834
 ```
 
 ### Tensor allocation

@@ -159,12 +159,13 @@ OperatorHandle Dispatcher::findOrRegisterName_(const OperatorName& op_name) {
     return *found;
   }
 
+  //if (op_name.name == "aten::empty") {
+  //  ::std::cout<< "register op " << op_name.name << " " << op_name.overload_name << "@ ./aten/src/ATen/core/dispatch/Dispatcher.cpp:163\n";
+  //}
+
   operators_.emplace_back(OperatorName(op_name));
   OperatorHandle handle(--operators_.end());
   operatorLookupTable_.write([&] (ska::flat_hash_map<OperatorName, OperatorHandle>& operatorLookupTable) {
-  if (op_name.name == "aten::empty") {
-    ::std::cout<< "register op " << op_name.name << " " << op_name.overload_name << "\n";
-  }
     operatorLookupTable.emplace(op_name, handle);
   });
 
@@ -219,7 +220,7 @@ RegistrationHandleRAII Dispatcher::registerDef(FunctionSchema schema, std::strin
   // type = c10::OperatorName
 
   if (op_name.name == "aten::empty" && op_name.overload_name == "memory_format") {
-    ::std::cout<< "register op " << op_name.name << " " << op_name.overload_name << " with " << schema << " @ " << debug << "\n";
+    ::std::cout<< "register Def " << op_name.name << " " << op_name.overload_name << " with " << schema << " @ " << debug << "\n";
   }
 
   auto op = findOrRegisterName_(op_name);
@@ -344,6 +345,10 @@ RegistrationHandleRAII Dispatcher::registerImpl(
   std::string debug
 ) {
   std::lock_guard<std::mutex> lock(guard_->mutex);
+
+  if (op_name.name == "aten::empty" && op_name.overload_name == "memory_format") {
+      ::std::cout<< "register Impl " << op_name.name << " " << op_name.overload_name << " - " << *dispatch_key << " @ " << debug << "\n";
+  }
 
   auto op = findOrRegisterName_(op_name);
 
