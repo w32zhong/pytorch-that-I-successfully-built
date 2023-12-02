@@ -346,7 +346,7 @@ ninja -t browse -p 8080 torch_python
 ## Source internal
 
 ### Operator registration
-Taken `tensor.empty()` operator as an example here.
+Taking `tensor.empty()` operator as an example here.
 ```c
 // torch/library.h
 #define TORCH_LIBRARY(ns, m)                                                   \
@@ -418,7 +418,7 @@ void TORCH_LIBRARY_init_aten(torch::Library& m) {
     m.def("empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor", {at::Tag::core, at::Tag::pt2_compliant_tag});
 }
 
-// taken ./build/aten/src/ATen/RegisterCPU.cpp as an example:
+// taking ./build/aten/src/ATen/RegisterCPU.cpp as an example:
 static void TORCH_LIBRARY_IMPL_init_aten_CPU_123(torch::Library&);
 static const torch::detail::TorchLibraryInit
     TORCH_LIBRARY_IMPL_static_init_aten_CPU_123(
@@ -1070,6 +1070,20 @@ TensorBase _empty_generic(
       std::move(storage_impl), ks, dtype);
   return tensor;
 }
+```
+
+The overall route after calling `a=torch.tensor()`:
+```
+[call] op=[aten::empty.memory_format], key=[BackendSelect]
+callUnboxedKernelFunction with sym
+[redispatch] op=[aten::empty.memory_format], key=[CPU]
+callUnboxedKernelFunction with sym
+[call] op=[aten::to.device], key=[CPU]
+callUnboxedKernelFunction with unboxed
+[call] op=[aten::lift_fresh], key=[CPU]
+callUnboxedKernelFunction with unboxed
+[call] op=[aten::detach_], key=[AutogradCPU]
+callUnboxedKernelFunction with unboxed
 ```
 
 ### Tensor and Storage
