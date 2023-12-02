@@ -629,7 +629,8 @@ RegistrationHandleRAII Dispatcher::registerImpl(
 ) {
   auto op = findOrRegisterName_(op_name);
 
-  ::std::cout<< "register Impl " << op_name.name << " " << op_name.overload_name << " - " << *dispatch_key << " @ " << debug << "\n";
+  if (op_name.name == "aten::empty" && op_name.overload_name == "memory_format") {
+    ::std::cout<< "register Impl " << op_name.name << " " << op_name.overload_name << " - " << *dispatch_key << " @ " << debug << "\n";
 
   auto handle = op.operatorDef_->op.registerKernel(
     *this,
