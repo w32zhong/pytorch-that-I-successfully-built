@@ -742,7 +742,7 @@ Tensor tensor_ctor(
         /*copy_numpy=*/true,
         /*type_inference=*/type_inference,
         pin_memory);
-    new_tensor.detach_(); // ensure new_tensor a leaf node
+    new_tensor.detach_(); // call [aten::detach_]
     new_tensor.set_requires_grad(args_requires_grad);
     return new_tensor;
 }
@@ -763,7 +763,7 @@ Tensor internal_new_from_data(
       type_inference ? infer_scalar_type(data) : scalar_type;
   Tensor tensor;
   {
-    tensor = at::empty(sizes, opts.pinned_memory(pin_memory)); // call Operator!
+    tensor = at::empty(sizes, opts.pinned_memory(pin_memory)); // call [aten::empty.memory_format]
     recursive_store(
       (char*)tensor.data_ptr(),
       tensor.sizes(),
@@ -772,10 +772,10 @@ Tensor internal_new_from_data(
       inferred_scalar_type,
       tensor.dtype().itemsize(),
       data);
-    tensor = tensor.to(device, inferred_scalar_type);
+    tensor = tensor.to(device, inferred_scalar_type); // call [aten::to.device]
   }
 
-  return at::lift_fresh(tensor);
+  return at::lift_fresh(tensor); // call [aten::lift_fresh]
 }
 
 void recursive_store(
@@ -1020,14 +1020,20 @@ at::Tensor empty_memory_format(c10::SymIntArrayRef size, c10::optional<at::Scala
 at::Tensor empty_memory_format::redispatch(c10::DispatchKeySet dispatchKeySet, c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
     
     static auto op = create_empty_memory_format_typed_handle();
+    ::std::cerr << "[redispatch] op=[" << op.operator_name() << "], key=[" << dispatchKeySet.highestPriorityTypeId() << "]" << ::std::endl;
     return op.redispatch(dispatchKeySet, size, dtype, layout, device, pin_memory, memory_format);
+}
+
+// ./aten/src/ATen/core/dispatch/Dispatcher.h
+template<class Return, class... Args>
+inline Return Dispatcher::redispatch(const TypedOperatorHandle<Return (Args...)>& op, DispatchKeySet currentDispatchKeySet, Args... args) const {
+  const KernelFunction& kernel = op.operatorDef_->op.lookup(currentDispatchKeySet);
+  // call KernelFunction::call again...
+  return kernel.template call<Return, Args...>(op, currentDispatchKeySet, std::forward<Args>(args)...);
 }
 
 // ./build/aten/src/ATen/RegisterCPU.cpp
 at::Tensor wrapper_CPU_memory_format_empty(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
-    // No device check
-  // DeviceGuard omitted
-  ;
   return at::native::empty_cpu(C10_AS_INTARRAYREF_SLOW(size), dtype, layout, device, pin_memory, memory_format);
 }
 

@@ -48,7 +48,7 @@ template<class Return, class... Args>
 inline Return callUnboxedKernelFunction(void* unboxed_kernel_func, OperatorKernel* functor, DispatchKeySet dispatchKeySet, Args&&... args) {
     using ActualSignature = Return (OperatorKernel*, DispatchKeySet, Args...);
     ActualSignature* func = reinterpret_cast<ActualSignature*>(unboxed_kernel_func);
-    ::std::cout << "unboxed func: " << func << "\n";
+    //::std::cout << "unboxed func: " << *func << "\n";
     return (*func)(functor, dispatchKeySet, std::forward<Args>(args)...);
 }
 
