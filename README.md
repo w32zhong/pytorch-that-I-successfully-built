@@ -360,7 +360,9 @@ Taken `tensor.empty()` operator as an example here.
       __LINE__);                                                               \
   void TORCH_LIBRARY_init_##ns(torch::Library& m)
 
-#define TORCH_LIBRARY_IMPL(ns, k, m, uid)                                 \
+#define TORCH_LIBRARY_IMPL(ns, k, m) _TORCH_LIBRARY_IMPL(ns, k, m, C10_UID)
+
+#define _TORCH_LIBRARY_IMPL(ns, k, m, uid)                                 \
   static void C10_CONCATENATE(                                            \
       TORCH_LIBRARY_IMPL_init_##ns##_##k##_, uid)(torch::Library&);       \
   static const torch::detail::TorchLibraryInit C10_CONCATENATE(           \
@@ -381,14 +383,20 @@ TORCH_LIBRARY(aten, m) {
   m.def("empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor", {at::Tag::core, at::Tag::pt2_compliant_tag});
 }
 
+// build/aten/src/ATen/RegisterBackendSelect.cpp
+TORCH_LIBRARY_IMPL(aten, BackendSelect, m) {
+  m.impl("aten::empty.memory_format", TORCH_FN(empty_memory_format));
+}
+
 // ./build/aten/src/ATen/RegisterCPU.cpp
-TORCH_LIBRARY_IMPL(aten, CPU, m, 123) {
+TORCH_LIBRARY_IMPL(aten, CPU, m) {
   m.impl("empty.memory_format", TORCH_FN(wrapper_CPU_memory_format_empty));
 }
+
 // similarly in ./build/aten/src/ATen/RegisterCUDA.cpp
 // similarly in ./build/aten/src/ATen/RegisterMkldnnCPU.cpp
 // fallback in aten/src/ATen/ConjugateFallback.cpp, for example:
-TORCH_LIBRARY_IMPL(aten, Conjugate, m, 124) {
+TORCH_LIBRARY_IMPL(aten, Conjugate, m) {
   m.impl("empty.memory_format", torch::CppFunction::makeFallthrough());
 }
 ```
@@ -855,7 +863,10 @@ struct TORCH_API empty_memory_format {
   static constexpr const char* name = "aten::empty";
   static constexpr const char* overload_name = "memory_format";
   static constexpr const char* schema_str = "empty.memory_format(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor";
+
   static at::Tensor call(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format);
+
+  static at::Tensor redispatch(c10::DispatchKeySet dispatchKeySet, c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format);
 };
 
 // ./build/aten/src/ATen/Operators_2.cpp
@@ -996,8 +1007,22 @@ C10_ALWAYS_INLINE Return KernelFunction::call(const OperatorHandle& opHandle, Di
 }
 ```
 
-The implementation is located by finding the `wrapper_CPU_memory_format_empty` function (or refer to [native_functions.yaml](aten/src/ATen/native/native_functions.yaml)):
+The implementation is located by finding the `empty_memory_format` or `wrapper_CPU_memory_format_empty` function (or refer to [native_functions.yaml](aten/src/ATen/native/native_functions.yaml)):
 ```c
+// build/aten/src/ATen/RegisterBackendSelect.cpp 
+at::Tensor empty_memory_format(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
+  DispatchKeySet _dk = c10::DispatchKeySet(c10::computeDispatchKey(dtype, layout, device));
+  return at::_ops::empty_memory_format::redispatch(
+      _dk, size, dtype, layout, device, pin_memory, memory_format);
+}
+
+// build/aten/src/ATen/Operators_2.cpp
+at::Tensor empty_memory_format::redispatch(c10::DispatchKeySet dispatchKeySet, c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
+    
+    static auto op = create_empty_memory_format_typed_handle();
+    return op.redispatch(dispatchKeySet, size, dtype, layout, device, pin_memory, memory_format);
+}
+
 // ./build/aten/src/ATen/RegisterCPU.cpp
 at::Tensor wrapper_CPU_memory_format_empty(c10::SymIntArrayRef size, c10::optional<at::ScalarType> dtype, c10::optional<at::Layout> layout, c10::optional<at::Device> device, c10::optional<bool> pin_memory, c10::optional<at::MemoryFormat> memory_format) {
     // No device check
