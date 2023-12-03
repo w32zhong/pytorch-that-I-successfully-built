@@ -1002,6 +1002,8 @@ and its call() is invoking:
 template<class Return, class... Args>
 C10_ALWAYS_INLINE_UNLESS_MOBILE Return
 Dispatcher::call(const TypedOperatorHandle<Return(Args...)>& op, Args... args) const {
+  // (gdb) p op.operatorDef_->op.listAllDispatchKeys().c_str()
+  // "[CPU, CUDA, Meta, QuantizedCPU, QuantizedCUDA, QuantizedMeta, MkldnnCPU"...
   c10::DispatchKeySet dispatchKeySet = op.operatorDef_->op.dispatchKeyExtractor()
     .template getDispatchKeySetUnboxed<Args...>(args...);
   std::cerr << "[call] op=[" << op.operator_name() << "], key=[" << dispatchKeySet.highestPriorityTypeId() << "]" << std::endl;

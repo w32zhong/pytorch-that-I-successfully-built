@@ -361,6 +361,10 @@ RegistrationHandleRAII Dispatcher::registerImpl(
     std::move(debug)
   );
 
+  //if (op_name.name == "aten::empty" && op_name.overload_name == "memory_format") {
+  //  ::std::cout << op.operatorDef_->op.listAllDispatchKeys() << "\n";
+  //}
+
   ++op.operatorDef_->def_and_impl_count;
 
   cond_var_.notify_all();
