@@ -1137,7 +1137,7 @@ struct C10_API StorageImpl : public c10::intrusive_ptr_target {
       bool resizable)
       : StorageImpl(  /* allocate and call wrapper #2 */
             size_bytes,
-            size_bytes.is_heap_allocated() /* almost always true */
+            size_bytes.is_heap_allocated() /* 0 */
                 ? allocator->allocate(0)
                 : allocator->allocate(size_bytes.as_int_unchecked()),
             allocator,
@@ -1251,16 +1251,8 @@ class C10_API DataPtr {
     return ptr_.get(); /* return the actual C void pointer */
   }
 };
-```
 
-So the left-over question is how the allocation is done. Recall:
-```c
-size_bytes.is_heap_allocated() /* almost always true */
-    ? allocator->allocate(0)
-    : allocator->allocate(size_bytes.as_int_unchecked()),
-```
-So it will call (e.g., `nbytes = 8` for `torch.tensor([1])` where element type is of `size_t`):
-```c
+// ./c10/core/CPUAllocator.cpp
 struct C10_API DefaultCPUAllocator final : at::Allocator {
   at::DataPtr allocate(size_t nbytes) const override {
     void* data = nullptr;
