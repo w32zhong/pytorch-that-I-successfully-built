@@ -815,6 +815,11 @@ Tensor internal_new_from_data(
   }
 
   return at::lift_fresh(tensor); // call [aten::lift_fresh]
+# lift_fresh is called with an argument that is guaranteed to be
+# fresh (i.e., newly allocated).  This is ONLY called from a
+# torch.tensor call; The default implementation of lift is a no-op.
+# See build/aten/src/ATen/RegisterCompositeExplicitAutograd.cpp
+# and ./aten/src/ATen/native/TensorShape.cpp
 }
 
 void recursive_store(
