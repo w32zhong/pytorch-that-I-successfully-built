@@ -1251,7 +1251,9 @@ class C10_API DataPtr {
     return ptr_.get(); /* return the actual C void pointer */
   }
 };
-
+```
+now, let's look at allocator:
+```
 // ./c10/core/CPUAllocator.cpp
 struct C10_API DefaultCPUAllocator final : at::Allocator {
   at::DataPtr allocate(size_t nbytes) const override {
@@ -1266,4 +1268,20 @@ struct C10_API DefaultCPUAllocator final : at::Allocator {
     return {data, data, &ReportAndDelete, at::Device(at::DeviceType::CPU)};
   }
 };
+
+// ./c10/core/impl/alloc_cpu.cpp
+void* alloc_cpu(size_t nbytes) {
+  void* data;
+  constexpr size_t gAlignment = 64;
+  // posix_memalign: work with memory aligned on larger block sizes than malloc.
+  int err = posix_memalign(&data, gAlignment, nbytes);
+  // caffe2 interface: move data to a thread's Non-Uniform Memory Access (NUMA) node
+  NUMAMove(data, nbytes, GetCurrentNUMANode());
+  if (FLAGS_caffe2_cpu_allocator_do_zero_fill) {
+    memset(data, 0, nbytes);
+  } else if (FLAGS_caffe2_cpu_allocator_do_junk_fill) {
+    memset_junk(data, nbytes);
+  }
+  return data;
+}
 ```
