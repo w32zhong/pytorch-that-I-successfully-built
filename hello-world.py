@@ -1,41 +1,24 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
+device = 'cpu'
+#device = 'cuda:0'
 
+print('1' * 100)
+A = torch.tensor([[2., 3.], [1., 4.]], requires_grad=True, device=device)
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.hidden_layer = nn.Linear(1, 1)
-        self.hidden_layer.weight = torch.nn.Parameter(torch.tensor([[1.58]]))
-        self.hidden_layer.bias = torch.nn.Parameter(torch.tensor([-0.14]))
+print('2' * 100)
+x = torch.tensor([[6.], [-5.]], requires_grad=True, device=device)
 
-        self.output_layer = nn.Linear(1, 1)
-        self.output_layer.weight = torch.nn.Parameter(torch.tensor([[2.45]]))
-        self.output_layer.bias = torch.nn.Parameter(torch.tensor([-0.11]))
+print('3' * 100)
+y = A @ x
 
-    def forward(self, x):
-        x = torch.sigmoid(self.hidden_layer(x))
-        x = torch.sigmoid(self.output_layer(x))
-        return x
+print('4' * 100)
+z = y.sum()
 
+print('5' * 100)
+z.backward(retain_graph=True)
 
-net = Net()
-net = net.to('cuda:0')
-
-input_data = torch.tensor([0.8])
-input_data = input_data.to('cuda:0')
-
-target = torch.tensor([1.])
-target = target.to('cuda:0')
-
-output = net(input_data)
-criterion = nn.MSELoss()
-loss = criterion(output, target)
-net.zero_grad()
-loss.backward()
-optimizer = optim.SGD(net.parameters(), lr=0.1)
-optimizer.step()
-
-print(output)
-print(loss)
+#print('6' * 100)
+#print(A.grad)
+#
+#print('7' * 100)
+#print(x.grad)
