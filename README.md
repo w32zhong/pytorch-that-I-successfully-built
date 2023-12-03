@@ -1252,8 +1252,9 @@ class C10_API DataPtr {
   }
 };
 ```
-now, let's look at allocator:
-```
+
+Now, let's look at allocator:
+```c
 // ./c10/core/CPUAllocator.cpp
 struct C10_API DefaultCPUAllocator final : at::Allocator {
   at::DataPtr allocate(size_t nbytes) const override {
