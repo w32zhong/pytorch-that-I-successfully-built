@@ -35,6 +35,10 @@ but the `AutogradMetaInterface` is a virtual interface.
 This interface is actually instantiated by `Variable`:
 ```c++
 // torch/csrc/autograd/variable.h
+
+// `Variable` is exactly the same as `Tensor` (for backward compatibility)
+using Variable = at::Tensor;
+
 struct TORCH_API AutogradMeta : public c10::AutogradMetaInterface {
   bool requires_grad_{false};
 
