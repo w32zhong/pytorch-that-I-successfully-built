@@ -47,3 +47,26 @@ struct TORCH_API AutogradMeta : public c10::AutogradMetaInterface {
   }
 };
 ```
+
+The `AutogradMetaInterface` will be materialized on demand.
+For example, when calling the `detach_()` function, it got the chance to call `materialize_autograd_meta`:
+```
+// torch/csrc/autograd/VariableTypeManual.cpp
+Tensor& detach_(c10::DispatchKeySet ks, Tensor& self) {
+  auto autograd_meta = impl::materialize_autograd_meta(self);
+  autograd_meta->set_requires_grad(false, self.unsafeGetTensorImpl());
+  autograd_meta->grad_fn_.reset();
+  autograd_meta->output_nr_ = 0;
+  autograd_meta->fw_grad_.reset();
+  return self;
+}
+
+// ./torch/csrc/autograd/variable.cpp
+AutogradMeta* materialize_autograd_meta(const at::TensorBase& self) {
+  auto p = self.unsafeGetTensorImpl();
+  if (!p->autograd_meta()) {
+    p->set_autograd_meta(std::make_unique<AutogradMeta>()); // create the AutogradMeta
+  }
+  return get_autograd_meta(self);
+}
+```

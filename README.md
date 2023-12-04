@@ -393,6 +393,11 @@ TORCH_LIBRARY_IMPL(aten, CPU, m) {
   m.impl("empty.memory_format", TORCH_FN(wrapper_CPU_memory_format_empty));
 }
 
+// ./build/aten/src/ATen/RegisterFunctionalization_0.cpp
+TORCH_LIBRARY_IMPL(aten, CPU, m) {
+  m.impl("detach_", TORCH_FN(functionalization::detach_));
+}
+
 // similarly in ./build/aten/src/ATen/RegisterCUDA.cpp
 // similarly in ./build/aten/src/ATen/RegisterMkldnnCPU.cpp
 // fallback in aten/src/ATen/ConjugateFallback.cpp, for example:
