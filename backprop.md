@@ -73,3 +73,50 @@ This tensor interface is actually called `Variable` for compatibility reasons:
 // `Variable` is exactly the same as `Tensor` (for backward compatibility)
 using Variable = at::Tensor;
 ```
+
+### Basic Example
+In [hello-world.py](./hello-world.py):
+```py
+import torch
+device = 'cpu'
+#device = 'cuda:0'
+
+print('1' * 100)
+A = torch.tensor([[2., 3.], [1., 4.]], requires_grad=True, device=device)
+
+print('2' * 100)
+x = torch.tensor([[6.], [-5.]], requires_grad=True, device=device)
+
+print('3' * 100)
+y = A @ x
+
+print('4' * 100)
+z = y.sum()
+
+print('5' * 100)
+z.backward(retain_graph=True)
+```
+```
+$ python hello-world.py
+...
+3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+[call] op=[aten::matmul], key=[AutogradCPU]
+callUnboxedKernelFunction with unboxed
+[call] op=[aten::mm], key=[AutogradCPU]
+callUnboxedKernelFunction with unboxed
+callUnboxedKernelFunction with unboxed
+[call] op=[aten::resolve_conj], key=[CPU]
+callUnboxedKernelFunction with unboxed
+4444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444
+[call] op=[aten::sum], key=[AutogradCPU]
+callUnboxedKernelFunction with unboxed
+callUnboxedKernelFunction with unboxed
+[call] op=[aten::sum.dim_IntList], key=[CPU]
+callUnboxedKernelFunction with unboxed
+[call] op=[aten::as_strided], key=[CPU]
+callUnboxedKernelFunction with sym
+[call] op=[aten::fill_.Scalar], key=[CPU]
+callUnboxedKernelFunction with unboxed
+5555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555
+...
+```
