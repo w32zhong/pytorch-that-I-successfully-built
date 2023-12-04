@@ -1,4 +1,6 @@
 ## Autograd
+
+### AutogradMeta
 In `tensor_ctor` function, the `requires_grad` option is handled by:
 ```c++
 // ./torch/csrc/utils/tensor_new.cpp
@@ -30,25 +32,8 @@ struct C10_API AutogradMetaInterface {
       at::TensorImpl* self_impl) = 0;
 };
 ```
-but the `AutogradMetaInterface` is a virtual interface.
 
-This interface is actually instantiated by `Variable`:
-```c++
-// torch/csrc/autograd/variable.h
-
-// `Variable` is exactly the same as `Tensor` (for backward compatibility)
-using Variable = at::Tensor;
-
-struct TORCH_API AutogradMeta : public c10::AutogradMetaInterface {
-  bool requires_grad_{false};
-
-  void set_requires_grad(bool requires_grad, at::TensorImpl* self_impl) final {
-    requires_grad_ = requires_grad;
-  }
-};
-```
-
-The `AutogradMetaInterface` will be materialized on demand.
+Note that the `AutogradMetaInterface` is a virtual interface, it will be materialized on demand.
 For example, when calling the `detach_()` function, it got the chance to call `materialize_autograd_meta`:
 ```c++
 // torch/csrc/autograd/VariableTypeManual.cpp
@@ -69,4 +54,22 @@ AutogradMeta* materialize_autograd_meta(const at::TensorBase& self) {
   }
   return get_autograd_meta(self);
 }
+
+// torch/csrc/autograd/variable.h
+struct TORCH_API AutogradMeta : public c10::AutogradMetaInterface {
+  bool requires_grad_{false};
+
+  void set_requires_grad(bool requires_grad, at::TensorImpl* self_impl) final {
+    requires_grad_ = requires_grad;
+  }
+};
+```
+
+### Variable
+This tensor interface is actually called `Variable` for compatibility reasons:
+```c++
+// torch/csrc/autograd/variable.h
+
+// `Variable` is exactly the same as `Tensor` (for backward compatibility)
+using Variable = at::Tensor;
 ```
