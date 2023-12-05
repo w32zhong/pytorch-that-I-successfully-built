@@ -496,6 +496,7 @@ static void addmm_impl_cpu_(
   // Apply BLAS routine
   _AT_DISPATCH_ADDMM_TYPES(result.scalar_type(), "addmm_impl_cpu_", [&]{
       using opmath_t = at::opmath_type<scalar_t>;
+      // eventually calling LAPACK library...
       at::native::cpublas::gemm(
           transpose_a ? a.is_conj() ? TransposeType::ConjTranspose : TransposeType::Transpose : TransposeType::NoTranspose,
           transpose_b ? b.is_conj() ? TransposeType::ConjTranspose : TransposeType::Transpose : TransposeType::NoTranspose,
