@@ -728,6 +728,8 @@ for name in dir(_C._VariableFunctions):
         __all__.append(name)
 ```
 
+The stub file (see PEP 484) for the tensor interface is at `torch/_C/_VariableFunctions.pyi`.
+
 And in `gatherTorchFunctions`:
 ```c
 // ./torch/csrc/autograd/python_torch_functions_manual.cpp
