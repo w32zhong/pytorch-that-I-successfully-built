@@ -302,7 +302,7 @@ struct TORCH_API mm {
 };
 ```
 
-Dispatching again ...
+So now it is dispatching the `aten::mm` key:
 ```c++
 // torch/csrc/autograd/generated/VariableType_3.cpp
 
@@ -317,11 +317,12 @@ TORCH_LIBRARY_IMPL(aten, AutogradNestedTensor, m) {
 at::Tensor mm(c10::DispatchKeySet ks, const at::Tensor & self, const at::Tensor & mat2) {
   auto& self_ = unpack(self, "self", 0);
   auto& mat2_ = unpack(mat2, "mat2", 1);
-  [[maybe_unused]] auto _any_requires_grad = compute_requires_grad( self, mat2 );
-  
-  [[maybe_unused]] auto _any_has_forward_grad_result = (isFwGradDefined(self) || isFwGradDefined(mat2));
+
+  auto _any_requires_grad = compute_requires_grad( self, mat2 );
+
   std::shared_ptr<MmBackward0> grad_fn;
   if (_any_requires_grad) {
+    // torch::autograd::generated::MmBackward0
     grad_fn = std::shared_ptr<MmBackward0>(new MmBackward0(), deleteNode);
     grad_fn->set_next_edges(collect_next_edges( self, mat2 ));
     if (grad_fn->should_compute_output(0)) {
@@ -337,61 +338,90 @@ at::Tensor mm(c10::DispatchKeySet ks, const at::Tensor & self, const at::Tensor 
     grad_fn->self_sym_sizes = self.sym_sizes().vec();
     grad_fn->self_sym_strides = strides_or_error(self, "self").vec();
   }
-  #ifndef NDEBUG
-  c10::optional<Storage> self__storage_saved =
-    self_.has_storage() ? c10::optional<Storage>(self_.storage()) : c10::nullopt;
-  c10::intrusive_ptr<TensorImpl> self__impl_saved;
-  if (self_.defined()) self__impl_saved = self_.getIntrusivePtr();
-  c10::optional<Storage> mat2__storage_saved =
-    mat2_.has_storage() ? c10::optional<Storage>(mat2_.storage()) : c10::nullopt;
-  c10::intrusive_ptr<TensorImpl> mat2__impl_saved;
-  if (mat2_.defined()) mat2__impl_saved = mat2_.getIntrusivePtr();
-  #endif
+
   auto _tmp = ([&]() {
-    at::AutoDispatchBelowADInplaceOrView guard;
     return at::redispatch::mm(ks & c10::after_autograd_keyset, self_, mat2_);
   })();
-  auto result = std::move(_tmp);
-  #ifndef NDEBUG
-  if (self__storage_saved.has_value() &&
-      !at::impl::dispatch_mode_enabled() &&
-      !at::impl::tensor_has_dispatch(self_))
-    TORCH_INTERNAL_ASSERT(self__storage_saved.value().is_alias_of(self_.storage()));
-  if (self__impl_saved && !at::impl::dispatch_mode_enabled() && !at::impl::tensor_has_dispatch(self_))
-    TORCH_INTERNAL_ASSERT(self__impl_saved == self_.getIntrusivePtr());
-  if (mat2__storage_saved.has_value() &&
-      !at::impl::dispatch_mode_enabled() &&
-      !at::impl::tensor_has_dispatch(mat2_))
-    TORCH_INTERNAL_ASSERT(mat2__storage_saved.value().is_alias_of(mat2_.storage()));
-  if (mat2__impl_saved && !at::impl::dispatch_mode_enabled() && !at::impl::tensor_has_dispatch(mat2_))
-    TORCH_INTERNAL_ASSERT(mat2__impl_saved == mat2_.getIntrusivePtr());
-  if (result.has_storage() && !at::impl::dispatch_mode_enabled() && !at::impl::tensor_has_dispatch(result)) {
-    TORCH_INTERNAL_ASSERT(result.storage().use_count() == 1, "function: mm");
-  }
-  if (!at::impl::dispatch_mode_enabled() && !at::impl::tensor_has_dispatch(result))
-    TORCH_INTERNAL_ASSERT(result.use_count() <= 1, "function: mm");
-  #endif
+  at::Tensor result = std::move(_tmp);
+
   if (grad_fn) {
       set_history(flatten_tensor_args( result ), grad_fn);
   }
-  c10::optional<at::Tensor> result_new_fw_grad_opt = c10::nullopt;
-  if (_any_has_forward_grad_result && (result.defined())) {
-      auto self_t_raw = toNonOptFwGrad(self);
-      auto self_tensor = toNonOptTensor(self);
-      auto self_t = (self_t_raw.defined() || !self_tensor.defined())
-        ? self_t_raw : at::_efficientzerotensor(self_tensor.sizes(), self_tensor.options());
-      auto self_p = toNonOptPrimal(self);
-      auto mat2_t_raw = toNonOptFwGrad(mat2);
-      auto mat2_tensor = toNonOptTensor(mat2);
-      auto mat2_t = (mat2_t_raw.defined() || !mat2_tensor.defined())
-        ? mat2_t_raw : at::_efficientzerotensor(mat2_tensor.sizes(), mat2_tensor.options());
-      auto mat2_p = toNonOptPrimal(mat2);
-      result_new_fw_grad_opt = at::mm(self_t, mat2_p) + at::mm(self_p, mat2_t);
-  }
-  if (result_new_fw_grad_opt.has_value() && result_new_fw_grad_opt.value().defined() && result.defined()) {
-    // The hardcoded 0 here will need to be updated once we support multiple levels.
-    result._set_fw_grad(result_new_fw_grad_opt.value(), /* level */ 0, /* is_inplace_op */ false);
-  }
   return result;
+}
+
+// build/aten/src/ATen/RedispatchFunctions.h
+namespace redispatch {
+    inline at::Tensor mm(c10::DispatchKeySet dispatchKeySet, const at::Tensor & self, const at::Tensor & mat2) {
+        return at::_ops::mm::redispatch(dispatchKeySet, self, mat2);
+    }
+}
+
+// build/aten/src/ATen/Operators_3.cpp
+at::Tensor mm::redispatch(c10::DispatchKeySet dispatchKeySet, const at::Tensor & self, const at::Tensor & mat2) {
+    static auto op = create_mm_typed_handle();
+    return op.redispatch(dispatchKeySet, self, mat2);
+}
+```
+
+This will "redispatch" to:
+```c++
+// ./build/aten/src/ATen/ops/mm_meta.h
+struct TORCH_API structured_mm : public at::impl::MetaBase {
+    void meta(const at::Tensor & self, const at::Tensor & mat2);
+};
+
+// build/aten/src/ATen/ops/mm_native.h 
+struct TORCH_API structured_mm_out_cpu : public at::meta::structured_mm {
+    void impl(const at::Tensor & self, const at::Tensor & mat2, const at::Tensor & out);
+};
+
+// build/aten/src/ATen/RegisterCPU.cpp
+struct structured_mm_out_cpu_functional final : public at::native::structured_mm_out_cpu {
+    void set_output_strided(
+        int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
+        TensorOptions options, DimnameList names
+    ) override {
+        outputs_[output_idx] = create_out(sizes, strides, options);
+        if (!names.empty()) {
+          namedinference::propagate_names(outputs_[output_idx], names);
+        }
+        // super must happen after, so that downstream can use maybe_get_output
+        // to retrieve the output
+    }
+    void set_output_raw_strided(
+        int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
+        TensorOptions options, DimnameList names
+    ) override {
+        outputs_[output_idx] = create_out(sizes, strides, options);
+        if (!names.empty()) {
+          namedinference::propagate_names(outputs_[output_idx], names);
+        }
+        // super must happen after, so that downstream can use maybe_get_output
+        // to retrieve the output
+    }
+    const Tensor& maybe_get_output(int64_t output_idx) override {
+      return outputs_[output_idx];
+    }
+    std::array<Tensor, 1> outputs_;
+};
+
+at::Tensor wrapper_CPU_mm(const at::Tensor & self, const at::Tensor & mat2) {
+    structured_mm_out_cpu_functional op;
+    op.meta(self, mat2);
+    op.impl(self, mat2, op.outputs_[0]);
+    return std::move(op.outputs_[0]);
+}
+
+// ./torch/include/ATen/TensorMeta.h
+#define TORCH_IMPL_FUNC(name) void structured_##name::impl
+
+// aten/src/ATen/native/LinearAlgebra.cpp
+TORCH_IMPL_FUNC(mm_out_cpu)(const Tensor & self, const Tensor & mat2, const Tensor & result) {
+// i.e., structured_mm_out_cpu::impl
+  {
+    at::NoNamesGuard guard;
+    addmm_impl_cpu_(const_cast<Tensor&>(result), result, self, mat2, 0, 1);
+  }
 }
 ```
