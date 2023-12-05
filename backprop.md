@@ -74,7 +74,7 @@ This tensor interface is actually called `Variable` for compatibility reasons:
 using Variable = at::Tensor;
 ```
 
-### Forward
+### Example forward -- matrix multiplication
 In [hello-world.py](./hello-world.py), there is a bare-minimal forward code example:
 ```py
 import torch
@@ -197,5 +197,201 @@ static PyObject * THPVariable_matmul(PyObject* self_, PyObject* args, PyObject* 
     return self.matmul(other);
   };
   return dispatch_matmul(self, _r.tensor(0)); /* _r.tensor(0) extract the first arg as tensor */
+}
+
+// ./build/aten/src/ATen/core/TensorBody.h
+inline at::Tensor Tensor::matmul(const at::Tensor & other) const {
+    return at::_ops::matmul::call(const_cast<Tensor&>(*this), other);
+}
+
+// build/aten/src/ATen/Operators_4.cpp
+static C10_NOINLINE c10::TypedOperatorHandle<matmul::schema> create_matmul_typed_handle() {
+  return c10::Dispatcher::singleton()
+      .findSchemaOrThrow(matmul::name, matmul::overload_name)
+      .typed<matmul::schema>();
+}
+
+at::Tensor matmul::call(const at::Tensor & self, const at::Tensor & other) {
+    // op: c10::TypedOperatorHandle<at::Tensor(const at::Tensor&, const at::Tensor&)>
+    static auto op = create_matmul_typed_handle();
+    return op.call(self, other);
+}
+```
+
+The `matmul::schema` is defined in
+```c++
+// build/aten/src/ATen/ops/matmul_ops.h
+struct TORCH_API matmul {
+  using schema = at::Tensor (const at::Tensor &, const at::Tensor &);
+  using ptr_schema = schema*;
+  STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(name, "aten::matmul")
+  STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(overload_name, "")
+  STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(schema_str, "matmul(Tensor self, Tensor other) -> Tensor")
+  static at::Tensor call(const at::Tensor & self, const at::Tensor & other);
+  static at::Tensor redispatch(c10::DispatchKeySet dispatchKeySet, const at::Tensor & self, const at::Tensor & other);
+};
+```
+so it calls `aten::matmul` operator, which is registered in (found by using gdb breakpoint at `Dispatcher::call`):
+```c++
+// build/aten/src/ATen/RegisterCompositeImplicitAutograd.cpp
+TORCH_LIBRARY_IMPL(aten, CompositeImplicitAutograd, m) {
+    m.impl("matmul", TORCH_FN(wrapper_CompositeImplicitAutograd__matmul));
+}
+
+at::Tensor wrapper_CompositeImplicitAutograd__matmul(const at::Tensor & self, const at::Tensor & other) {
+  return at::native::matmul(self, other);
+}
+
+// aten/src/ATen/native/LinearAlgebra.cpp
+Tensor matmul(const Tensor & tensor1, const Tensor & tensor2) {
+  at::Tensor result, unused;
+  result = at::native::_matmul_impl(unused, tensor1, tensor2);
+  return result;
+}
+
+// aten/src/ATen/native/LinearAlgebra.cpp
+static Tensor _matmul_impl(
+    Tensor& out,
+    const Tensor& tensor1,
+    const Tensor& tensor2) {
+  const auto dim_tensor1 = tensor1.dim();
+  const auto dim_tensor2 = tensor2.dim();
+
+  TORCH_CHECK(dim_tensor1 != 0 && dim_tensor2 != 0,
+              "both arguments to matmul need to be at least 1D, but they are ",
+              dim_tensor1, "D and ", dim_tensor2, "D");
+
+  if (dim_tensor1 == 1 && dim_tensor2 == 1) {
+    return tensor1.dot(tensor2);
+  } else if (dim_tensor1 == 2 && dim_tensor2 == 1) {
+    return tensor1.mv(tensor2);
+  } else if (dim_tensor1 == 1 && dim_tensor2 == 2) {
+    return tensor1.unsqueeze(0).mm(tensor2).squeeze_(0);
+  } else if (dim_tensor1 == 2 && dim_tensor2 == 2) {
+    return tensor1.mm(tensor2); /* our example goes here! */
+  }
+  ...
+}
+
+// ./build/aten/src/ATen/core/TensorBody.h
+inline at::Tensor Tensor::mm(const at::Tensor & mat2) const {
+    return at::_ops::mm::call(const_cast<Tensor&>(*this), mat2);
+}
+
+// build/aten/src/ATen/Operators_3.cpp
+static C10_NOINLINE c10::TypedOperatorHandle<mm::schema> create_mm_typed_handle() {
+  return c10::Dispatcher::singleton()
+      .findSchemaOrThrow(mm::name, mm::overload_name)
+      .typed<mm::schema>();
+}
+
+at::Tensor mm::call(const at::Tensor & self, const at::Tensor & mat2) {
+    static auto op = create_mm_typed_handle();
+    return op.call(self, mat2);
+}
+
+// build/aten/src/ATen/ops/mm_ops.h 
+struct TORCH_API mm {
+  using schema = at::Tensor (const at::Tensor &, const at::Tensor &);
+  using ptr_schema = schema*;
+  STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(name, "aten::mm")
+  STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(overload_name, "")
+  STATIC_CONSTEXPR_STR_INL_EXCEPT_WIN_CUDA(schema_str, "mm(Tensor self, Tensor mat2) -> Tensor")
+  static at::Tensor call(const at::Tensor & self, const at::Tensor & mat2);
+  static at::Tensor redispatch(c10::DispatchKeySet dispatchKeySet, const at::Tensor & self, const at::Tensor & mat2);
+};
+```
+
+Dispatching again ...
+```c++
+// torch/csrc/autograd/generated/VariableType_3.cpp
+
+// namespace VariableType {
+
+TORCH_LIBRARY_IMPL(aten, AutogradNestedTensor, m) {
+    m.impl("mm",
+           TORCH_FN(VariableType::mm)
+    );
+}
+
+at::Tensor mm(c10::DispatchKeySet ks, const at::Tensor & self, const at::Tensor & mat2) {
+  auto& self_ = unpack(self, "self", 0);
+  auto& mat2_ = unpack(mat2, "mat2", 1);
+  [[maybe_unused]] auto _any_requires_grad = compute_requires_grad( self, mat2 );
+  
+  [[maybe_unused]] auto _any_has_forward_grad_result = (isFwGradDefined(self) || isFwGradDefined(mat2));
+  std::shared_ptr<MmBackward0> grad_fn;
+  if (_any_requires_grad) {
+    grad_fn = std::shared_ptr<MmBackward0>(new MmBackward0(), deleteNode);
+    grad_fn->set_next_edges(collect_next_edges( self, mat2 ));
+    if (grad_fn->should_compute_output(0)) {
+      grad_fn->mat2_ = SavedVariable(mat2, false);
+    }
+    grad_fn->mat2_layout = mat2.layout();
+    grad_fn->mat2_sym_sizes = mat2.sym_sizes().vec();
+    grad_fn->mat2_sym_strides = strides_or_error(mat2, "mat2").vec();
+    if (grad_fn->should_compute_output(1)) {
+      grad_fn->self_ = SavedVariable(self, false);
+    }
+    grad_fn->self_layout = self.layout();
+    grad_fn->self_sym_sizes = self.sym_sizes().vec();
+    grad_fn->self_sym_strides = strides_or_error(self, "self").vec();
+  }
+  #ifndef NDEBUG
+  c10::optional<Storage> self__storage_saved =
+    self_.has_storage() ? c10::optional<Storage>(self_.storage()) : c10::nullopt;
+  c10::intrusive_ptr<TensorImpl> self__impl_saved;
+  if (self_.defined()) self__impl_saved = self_.getIntrusivePtr();
+  c10::optional<Storage> mat2__storage_saved =
+    mat2_.has_storage() ? c10::optional<Storage>(mat2_.storage()) : c10::nullopt;
+  c10::intrusive_ptr<TensorImpl> mat2__impl_saved;
+  if (mat2_.defined()) mat2__impl_saved = mat2_.getIntrusivePtr();
+  #endif
+  auto _tmp = ([&]() {
+    at::AutoDispatchBelowADInplaceOrView guard;
+    return at::redispatch::mm(ks & c10::after_autograd_keyset, self_, mat2_);
+  })();
+  auto result = std::move(_tmp);
+  #ifndef NDEBUG
+  if (self__storage_saved.has_value() &&
+      !at::impl::dispatch_mode_enabled() &&
+      !at::impl::tensor_has_dispatch(self_))
+    TORCH_INTERNAL_ASSERT(self__storage_saved.value().is_alias_of(self_.storage()));
+  if (self__impl_saved && !at::impl::dispatch_mode_enabled() && !at::impl::tensor_has_dispatch(self_))
+    TORCH_INTERNAL_ASSERT(self__impl_saved == self_.getIntrusivePtr());
+  if (mat2__storage_saved.has_value() &&
+      !at::impl::dispatch_mode_enabled() &&
+      !at::impl::tensor_has_dispatch(mat2_))
+    TORCH_INTERNAL_ASSERT(mat2__storage_saved.value().is_alias_of(mat2_.storage()));
+  if (mat2__impl_saved && !at::impl::dispatch_mode_enabled() && !at::impl::tensor_has_dispatch(mat2_))
+    TORCH_INTERNAL_ASSERT(mat2__impl_saved == mat2_.getIntrusivePtr());
+  if (result.has_storage() && !at::impl::dispatch_mode_enabled() && !at::impl::tensor_has_dispatch(result)) {
+    TORCH_INTERNAL_ASSERT(result.storage().use_count() == 1, "function: mm");
+  }
+  if (!at::impl::dispatch_mode_enabled() && !at::impl::tensor_has_dispatch(result))
+    TORCH_INTERNAL_ASSERT(result.use_count() <= 1, "function: mm");
+  #endif
+  if (grad_fn) {
+      set_history(flatten_tensor_args( result ), grad_fn);
+  }
+  c10::optional<at::Tensor> result_new_fw_grad_opt = c10::nullopt;
+  if (_any_has_forward_grad_result && (result.defined())) {
+      auto self_t_raw = toNonOptFwGrad(self);
+      auto self_tensor = toNonOptTensor(self);
+      auto self_t = (self_t_raw.defined() || !self_tensor.defined())
+        ? self_t_raw : at::_efficientzerotensor(self_tensor.sizes(), self_tensor.options());
+      auto self_p = toNonOptPrimal(self);
+      auto mat2_t_raw = toNonOptFwGrad(mat2);
+      auto mat2_tensor = toNonOptTensor(mat2);
+      auto mat2_t = (mat2_t_raw.defined() || !mat2_tensor.defined())
+        ? mat2_t_raw : at::_efficientzerotensor(mat2_tensor.sizes(), mat2_tensor.options());
+      auto mat2_p = toNonOptPrimal(mat2);
+      result_new_fw_grad_opt = at::mm(self_t, mat2_p) + at::mm(self_p, mat2_t);
+  }
+  if (result_new_fw_grad_opt.has_value() && result_new_fw_grad_opt.value().defined() && result.defined()) {
+    // The hardcoded 0 here will need to be updated once we support multiple levels.
+    result._set_fw_grad(result_new_fw_grad_opt.value(), /* level */ 0, /* is_inplace_op */ false);
+  }
+  return result;
 }
 ```
