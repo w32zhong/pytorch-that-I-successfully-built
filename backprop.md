@@ -419,9 +419,97 @@ at::Tensor wrapper_CPU_mm(const at::Tensor & self, const at::Tensor & mat2) {
 // aten/src/ATen/native/LinearAlgebra.cpp
 TORCH_IMPL_FUNC(mm_out_cpu)(const Tensor & self, const Tensor & mat2, const Tensor & result) {
 // i.e., structured_mm_out_cpu::impl
-  {
-    at::NoNamesGuard guard;
     addmm_impl_cpu_(const_cast<Tensor&>(result), result, self, mat2, 0, 1);
+}
+
+// aten/src/ATen/native/LinearAlgebra.cpp
+static void addmm_impl_cpu_(
+    Tensor &result, const Tensor &self, Tensor m1, Tensor m2, const Scalar& beta, const Scalar& alpha) {
+  const auto self_sizes = self.sizes();
+  auto m1_strides = m1.strides();
+  auto m1_sizes = m1.sizes();
+  auto m2_strides = m2.strides();
+  auto m2_sizes = m2.sizes();
+
+  at::native::resize_output(result, self_sizes);
+  const auto result_strides = result.strides();
+  const auto result_sizes = result.sizes();
+
+  bool transpose_c = false;
+  Tensor c;
+
+  // resolve_conj: Returns a new tensor with materialized conjugation if
+  // input’s conjugate bit is set to True, else returns input.
+  // it will cost an operation op=[aten::resolve_conj].
+
+  if (result_strides[0] == 1 &&
+      (result_sizes[1] == 1 || result_strides[1] >= std::max(int64_t{1}, result_sizes[0]))) {
+    transpose_c = false;
+    c = result.resolve_conj();
+  } else if (result_strides[1] == 1 &&
+             (result_sizes[0] == 1 || result_strides[0] >= std::max(int64_t{1}, result_sizes[1]))) {
+    std::swap(m1, m2);
+    std::swap(m1_sizes, m2_sizes);
+    std::swap(m1_strides, m2_strides);
+    transpose_c = true;
+    c = result.resolve_conj();
+  } else {
+    transpose_c = false;
+    c = result.resolve_conj().transpose(0, 1).contiguous().transpose_(0, 1);
   }
+
+  const int64_t m = result_sizes[transpose_c ? 1 : 0];
+  const int64_t n = result_sizes[transpose_c ? 0 : 1];
+  const int64_t k = m1_sizes[transpose_c ? 0 : 1];
+
+  bool transpose_a = false;
+  Tensor a;
+  if (m1_strides[transpose_c ? 1 : 0] == 1 &&
+      m1_strides[transpose_c ? 0 : 1] >= std::max(int64_t{1}, m)) {
+    transpose_a = false;
+    a = m1.resolve_conj();
+  } else if (m1_strides[transpose_c ? 0 : 1] == 1 &&
+             m1_strides[transpose_c ? 1 : 0] >= std::max(int64_t{1}, k)) {
+    transpose_a = true;
+    a = m1;
+  } else {
+    transpose_a = !transpose_c;
+    a = m1.clone(at::MemoryFormat::Contiguous);
+  }
+
+  bool transpose_b = false;
+  Tensor b;
+  if (m2_strides[transpose_c ? 1 : 0] == 1 &&
+      m2_strides[transpose_c ? 0 : 1] >= std::max(int64_t{1}, k)) {
+    transpose_b = false;
+    b = m2.resolve_conj();
+  } else if (m2_strides[transpose_c ? 0 : 1] == 1 &&
+             m2_strides[transpose_c ? 1 : 0] >= std::max(int64_t{1}, n)) {
+    transpose_b = true;
+    b = m2;
+  } else {
+    transpose_b = !transpose_c;
+    b = m2.clone(at::MemoryFormat::Contiguous);
+  }
+
+  const int64_t lda = a.strides()[(transpose_a == transpose_c) ? 1 : 0];
+  const int64_t ldb = b.strides()[(transpose_b == transpose_c) ? 1 : 0];
+  const int64_t ldc = c.strides()[transpose_c ? 0 : 1];
+
+  // Apply BLAS routine
+  _AT_DISPATCH_ADDMM_TYPES(result.scalar_type(), "addmm_impl_cpu_", [&]{
+      using opmath_t = at::opmath_type<scalar_t>;
+      at::native::cpublas::gemm(
+          transpose_a ? a.is_conj() ? TransposeType::ConjTranspose : TransposeType::Transpose : TransposeType::NoTranspose,
+          transpose_b ? b.is_conj() ? TransposeType::ConjTranspose : TransposeType::Transpose : TransposeType::NoTranspose,
+          m, n, k,
+          alpha.to<opmath_t>(),
+          a.const_data_ptr<scalar_t>(), lda,
+          b.const_data_ptr<scalar_t>(), ldb,
+          beta.to<opmath_t>(),
+          c.mutable_data_ptr<scalar_t>(), ldc);
+  });
+
+  result.copy_(c);
 }
 ```
