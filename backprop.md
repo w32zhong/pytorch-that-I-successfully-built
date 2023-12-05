@@ -120,3 +120,48 @@ callUnboxedKernelFunction with unboxed
 5555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555
 ...
 ```
+
+The stub file (see PEP 484) for the tensor interface is shown at `torch/_C/_VariableFunctions.pyi`.
+
+```py
+# torch/__init__.py
+from ._tensor import Tensor
+
+# torch/_tensor.py 
+class Tensor(torch._C.TensorBase):
+
+# torch/_C/__init__.pyi
+# Defined in torch/csrc/autograd/python_variable.cpp
+class TensorBase(metaclass=_TensorMeta):
+    requires_grad: _bool
+    retains_grad: _bool
+    def __matmul__(self, other: Any) -> Tensor: ...
+    ...
+```
+
+In `THPVariable_initModule` defines `torch._C.Tensor` or `torch._C._Tensor`:
+```c++
+// ./torch/csrc/autograd/python_variable.cpp
+PyTypeObject THPVariableType = {
+    PyVarObject_HEAD_INIT(
+        &THPVariableMetaType,
+        0) "torch._C.TensorBase", /* tp_name */
+    sizeof(THPVariable), /* tp_basicsize */
+    ...
+    nullptr, /* tp_methods */
+    nullptr, /* tp_members */
+    THPVariable_properties, /* tp_getset */
+    ...
+};
+
+bool THPVariable_initModule(PyObject* module) {
+  static std::vector<PyMethodDef> methods;
+  THPUtils_addPyMethodDefs(methods, torch::autograd::variable_methods);
+  THPVariableType.tp_methods = methods.data();
+  /* here adds <tensor>.<method> such as tensor_foo.__matmul__ */
+
+  PyModule_AddObject(module, "TensorBase", (PyObject*)&THPVariableType);
+  PyModule_AddObject(module, "_TensorBase", (PyObject*)&THPVariableType);
+  /* here adds <tensor>.<properties> such as tensor_foo.grad_fn or tensor_foo.grad */
+}
+```
