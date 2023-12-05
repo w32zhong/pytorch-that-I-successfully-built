@@ -378,17 +378,6 @@ struct TORCH_API structured_mm_out_cpu : public at::meta::structured_mm {
 
 // build/aten/src/ATen/RegisterCPU.cpp
 struct structured_mm_out_cpu_functional final : public at::native::structured_mm_out_cpu {
-    void set_output_strided(
-        int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
-        TensorOptions options, DimnameList names
-    ) override {
-        outputs_[output_idx] = create_out(sizes, strides, options);
-        if (!names.empty()) {
-          namedinference::propagate_names(outputs_[output_idx], names);
-        }
-        // super must happen after, so that downstream can use maybe_get_output
-        // to retrieve the output
-    }
     void set_output_raw_strided(
         int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
         TensorOptions options, DimnameList names
@@ -397,11 +386,6 @@ struct structured_mm_out_cpu_functional final : public at::native::structured_mm
         if (!names.empty()) {
           namedinference::propagate_names(outputs_[output_idx], names);
         }
-        // super must happen after, so that downstream can use maybe_get_output
-        // to retrieve the output
-    }
-    const Tensor& maybe_get_output(int64_t output_idx) override {
-      return outputs_[output_idx];
     }
     std::array<Tensor, 1> outputs_;
 };
@@ -414,7 +398,20 @@ at::Tensor wrapper_CPU_mm(const at::Tensor & self, const at::Tensor & mat2) {
 }
 
 // ./torch/include/ATen/TensorMeta.h
+#define TORCH_META_FUNC(name) void structured_##name::meta
 #define TORCH_IMPL_FUNC(name) void structured_##name::impl
+
+// aten/src/ATen/native/LinearAlgebra.cpp
+TORCH_META_FUNC(mm)(const Tensor & self, const Tensor & mat2) {
+// i.e., structured_mm_out_cpu::meta
+
+  // Named Tensors allow users to give explicit names to tensor dimensions.
+  // See: https://pytorch.org/docs/stable/named_tensor.html
+  auto names = at::namedinference::compute_matmul_outnames(self, mat2);
+
+  // names: std::vector<at::Dimname, std::allocator<at::Dimname> >
+  set_output_raw_strided(0, {self.sizes()[0], mat2.sizes()[1]}, {}, self.options(), names);
+}
 
 // aten/src/ATen/native/LinearAlgebra.cpp
 TORCH_IMPL_FUNC(mm_out_cpu)(const Tensor & self, const Tensor & mat2, const Tensor & result) {
