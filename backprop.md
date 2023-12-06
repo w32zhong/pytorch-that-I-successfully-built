@@ -302,7 +302,7 @@ struct TORCH_API mm {
 };
 ```
 
-So now it is dispatching the `aten::mm` key:
+So now it is dispatching the `aten::mm` operator with `AutogradNestedTensor` key:
 ```c++
 // torch/csrc/autograd/generated/VariableType_3.cpp
 
@@ -364,8 +364,13 @@ at::Tensor mm::redispatch(c10::DispatchKeySet dispatchKeySet, const at::Tensor &
 }
 ```
 
-This will "redispatch" to:
+This will "redispatch" to the `wrapper_CPU_mm` CPU backend handler:
 ```c++
+// build/aten/src/ATen/RegisterCPU.cpp 
+TORCH_LIBRARY_IMPL(aten, CPU, m) {
+    m.impl("mm", TORCH_FN(wrapper_CPU_mm));
+}
+
 // ./build/aten/src/ATen/ops/mm_meta.h
 struct TORCH_API structured_mm : public at::impl::MetaBase {
     void meta(const at::Tensor & self, const at::Tensor & mat2);
